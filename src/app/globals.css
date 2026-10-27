@@ -1,0 +1,86 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: #f7f6f3;
+  --foreground: #1c1b1a;
+  --card: #ffffff;
+  --muted: #efede8;
+  --muted-foreground: #66625b;
+  --border: #e4e1da;
+  --primary: #3b5bdb;
+  --primary-foreground: #ffffff;
+  --primary-soft: #e6ebfd;
+  --break: #a14a07;
+  --break-soft: #fdf0dc;
+  --danger: #c92a2a;
+  color-scheme: light;
+}
+
+.dark {
+  --background: #121211;
+  --foreground: #f1efea;
+  --card: #1b1b1a;
+  --muted: #242422;
+  --muted-foreground: #a29e95;
+  --border: #2e2d2a;
+  --primary: #8ea2ff;
+  --primary-foreground: #0d1020;
+  --primary-soft: #1e2540;
+  --break: #f0b45a;
+  --break-soft: #33270f;
+  --danger: #ff8787;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
+  --color-break: var(--break);
+  --color-break-soft: var(--break-soft);
+  --color-danger: var(--danger);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+a,
+select,
+input {
+  touch-action: manipulation;
+}
+
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+dialog::backdrop {
+  background: rgb(0 0 0 / 0.45);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

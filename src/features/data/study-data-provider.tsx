@@ -6,6 +6,7 @@ import {
 } from "@/lib/class-rules";
 import { findGroup } from "@/lib/class-tree";
 import { localStorageStore, type StudyDataStore } from "@/lib/data-store";
+import { validateStudyData } from "@/lib/data-export";
 import { createSerialWriter, isPromise } from "@/lib/serial-writer";
 import { reassignSession, sessionsForGroup } from "@/lib/session-rules";
 import { CLASS_COLORS, type StoredData } from "@/lib/storage";
@@ -40,6 +41,11 @@ type StudyData = {
   addGroup: (classId: string, name: string, parentId?: string) => Result;
   renameGroup: (classId: string, groupId: string, name: string) => Result;
   deleteGroup: (classId: string, groupId: string) => void;
+  /**
+   * Replaces ALL classes and sessions with validated data (used by import). Refused until
+   * "ready"; invalid data changes nothing. The new data is saved like any other change.
+   */
+  replaceAllData: (data: StoredData) => Result;
   /** Moves a saved session to another class/subgroup (null = no subgroup); nothing else about it changes. */
   reassignSession: (sessionId: string, classId: string, groupId: string | null) => Result;
   /** Idempotent: a session whose id is already stored is ignored. */
@@ -199,6 +205,20 @@ export function StudyDataProvider({
     setSessions((prev) => (prev.some((p) => p.id === session.id) ? prev : [session, ...prev]));
   }, [setSessions]);
 
+  const replaceAllData = useCallback(
+    (data: StoredData): Result => {
+      if (!readyRef.current) return NOT_READY;
+      const v = validateStudyData(data);
+      if (!v.ok) return v;
+      classesRef.current = v.value.classes;
+      sessionsRef.current = v.value.sessions;
+      setClasses(v.value.classes);
+      setSessionsState(v.value.sessions);
+      return { ok: true, value: undefined };
+    },
+    [],
+  );
+
   const reassign = useCallback(
     (sessionId: string, classId: string, groupId: string | null): Result => {
       if (!readyRef.current) return NOT_READY;
@@ -223,9 +243,9 @@ export function StudyDataProvider({
     () => ({
       status, loadError, retryLoad, saveError, retrySave,
       classes, sessions, addClass, renameClass, deleteClass,
-      addGroup, renameGroup, deleteGroup, reassignSession: reassign, logSession, secondsFor,
+      addGroup, renameGroup, deleteGroup, replaceAllData, reassignSession: reassign, logSession, secondsFor,
     }),
-    [status, loadError, retryLoad, saveError, retrySave, classes, sessions, addClass, renameClass, deleteClass, addGroup, renameGroup, deleteGroup, reassign, logSession, secondsFor],
+    [status, loadError, retryLoad, saveError, retrySave, classes, sessions, addClass, renameClass, deleteClass, addGroup, renameGroup, deleteGroup, replaceAllData, reassign, logSession, secondsFor],
   );
 
   return <StudyDataContext.Provider value={value}>{children}</StudyDataContext.Provider>;

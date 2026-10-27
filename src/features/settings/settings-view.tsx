@@ -5,6 +5,7 @@ import { Card, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { useTheme, type ThemePreference } from "@/features/theme/theme-provider";
+import { DataTransferCard } from "./data-transfer";
 
 const THEMES = [
   { value: "system" as const, label: "System", icon: <Monitor className="h-4 w-4" aria-hidden /> },
@@ -38,6 +39,8 @@ export function SettingsView() {
             in a later update. StudyTime starts empty; add your own classes to begin.
           </p>
         </Card>
+
+        <DataTransferCard />
       </div>
     </>
   );

@@ -10,7 +10,7 @@ Last updated: 2026-10-27 (end of Phase 1: stabilization). Everything below refle
 - **Classes and subgroups:** create, rename, delete. Subgroups are one level deep. Class names are unique app-wide, subgroup names unique per class (trimmed, spaces collapsed, case-insensitive). The UI disables the button and explains why when a name is a duplicate.
 - **History:** sessions grouped by day, class filter, tap a session to change its class or subgroup (only those two fields change). Subgroup pages show only that subgroup's sessions.
 - **Insights:** daily and weekly charts, streaks, per-class totals with a Today / This week / This month / All time dropdown. Local calendar, Monday-start weeks; a session that crosses a boundary is split proportionally.
-- **Settings:** light / dark / system theme.
+- **Settings:** light / dark / system theme, and Backup: export study data to a JSON file, or import one (replaces current data after a confirmation).
 - **Persistence:** localStorage on this device (see below). PWA manifest and icons exist; there is no service worker.
 
 ## Persistence, migrations and reset
@@ -52,13 +52,14 @@ The browser script was a throwaway and is not in the repo. Not browser-checked: 
   - Not fixed on purpose. `instant = false` would hide the message without fixing it. The real fix is to stop gating `children` on mount (for example, read localStorage through `useSyncExternalStore` in the data provider), which touches every view. Treat it as part of the data-layer work below.
 - **Not tested on iPhone or iPad Safari, or any real touch device.** The 375px check was a resized desktop Chrome window. iOS input zoom, safe-area insets and "Add to Home Screen" are unverified.
 - Not tested in Firefox or desktop Safari.
-- Data is per browser and device. Clearing site data erases it. There is no export or import.
+- Data is per browser and device. Clearing site data erases it; use Backup → Export to keep a copy.
+- Import (M1) is verified by unit tests and one desktop Chrome run (export, invalid file, cancel, confirm, reload). Not tested on iPhone/iPad Safari, where file download and the file picker may behave differently. The success message appears once the data is replaced in the app; if saving then fails, the existing "changes haven’t been saved" banner appears. Import validates strictly, so a file whose names or ids break the current rules (for example duplicate names from very old data) is rejected rather than repaired. Import is blocked while a timer is running.
 - No service worker; the app does not work offline.
 - The timer exists only in memory: reloading or closing the tab during a session loses it.
 
 ## Not implemented
 
-Supabase, accounts and sign-in, cross-device sync, data export/import, Pomodoro, nested subgroups, offline support, manual session entry, session deletion, notifications.
+Supabase, accounts and sign-in, cross-device sync, merging imports (import only replaces), Pomodoro, nested subgroups, offline support, manual session entry, session deletion, notifications.
 
 ## Next milestone
 

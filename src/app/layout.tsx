@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { AppShell } from "@/components/layout/app-shell";
+import { DataStatusGate } from "@/components/layout/data-status-gate";
 import { THEME_INIT_SCRIPT } from "@/features/theme/theme-provider";
 
 const geistSans = Geist({
@@ -45,7 +46,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body className="min-h-full">
         <Providers>
-          <AppShell>{children}</AppShell>
+          <AppShell>
+            <DataStatusGate>{children}</DataStatusGate>
+          </AppShell>
         </Providers>
       </body>
     </html>

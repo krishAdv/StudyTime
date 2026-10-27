@@ -64,7 +64,8 @@ Supabase, accounts and sign-in, cross-device sync, data export/import, Pomodoro,
 
 Plan Supabase authentication and multi-device synchronization (design first, no code yet). Suggested order:
 
-1. Put localStorage behind a small storage interface so `StudyDataProvider` does not call it directly.
+1. ~~Put localStorage behind a small storage interface~~ Done (Phase 2): `StudyDataStore` in `src/lib/data-store.ts`.
+1b. ~~Async-capable store, provider load status, retry, save gating, serialized writes~~ Done (M0). Verified by unit tests with fake async stores only; no real async store or browser run exists yet. A session finished while status is not `ready` is not queued (unreachable today because the timer needs a loaded class); the durable outbox is a later milestone.
 2. Resolve the dev diagnostic above by removing the mount gate, since remote data loads will need a proper loading state anyway.
 3. Decide the data model (classes, subgroups, sessions with stable ids, `updatedAt`, soft delete) and the conflict rules for two devices.
 4. Decide how existing local data is uploaded after first sign-in, keeping the backups.

@@ -18,6 +18,7 @@ Open <http://localhost:3000>.
 Other scripts:
 
 ```bash
+npm test                        # vitest (all tests)
 npm run lint                    # ESLint
 npx tsc --noEmit                # type-check
 npm run build && npm start      # production build, served on :3000
@@ -30,17 +31,20 @@ To try it on a phone or iPad on the same network, run `npm run dev -- -H 0.0.0.0
 
 | Screen | What works now |
 | --- | --- |
-| Dashboard | Stopwatch, Custom countdown and Pomodoro timer; Start / Pause / Resume / Stop; class + nested-group picker; today's summary and recent sessions. Pomodoro break time is shown separately and never counted as study time. |
-| Classes | Create, rename and delete classes; unlimited nested groups with breadcrumb navigation; per-class and per-group time totals. |
-| History | Sessions grouped by day, filter by class, empty states. |
+| Dashboard | Stopwatch and Countdown timer (default: Stopwatch); Start / Pause / Resume / Stop; class + subgroup picker; today's summary. Paused time is never counted. |
+| Classes | Create, rename and delete classes; one level of subgroups per class, with breadcrumb navigation; per-class and per-subgroup time totals. Class names are unique app-wide and subgroup names are unique within a class (case-insensitive). |
+| History | Sessions grouped by day, filter by class, empty states. Tap a session to change its class or subgroup. |
 | Insights | Daily and weekly charts, class breakdown, current and longest streak. |
-| Settings | Light / dark / system theme; custom timer and Pomodoro durations. |
+| Settings | Light / dark / system theme, and a note about where data is stored. The countdown length is set on the Dashboard and remembered. |
+
+See [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md) for what has been verified, known issues and the next milestone.
 
 ## Mocked or unfinished
 
 - StudyTime starts empty. Classes, subgroups and sessions are saved in `localStorage` on this device (no sync). Insights are computed from your saved sessions.
 - `src/lib/legacy-seed.ts` only recognises the old sample records for a one-time cleanup; it is never loaded as data.
-- No Supabase, auth, or API keys.
+- No Supabase, auth, or API keys. Data does not sync between devices.
+- Next.js dev mode logs an `instant-unrendered-segment` diagnostic on every route; see the status doc.
 
 ## PWA status
 
@@ -56,7 +60,7 @@ src/
     ui/                Reusable primitives (button, card, dialogs, select, ...)
   features/
     timer/             Timer state machine (provider), timer card, today summary
-    data/              In-memory classes/sessions store (future data-layer seam)
+    data/              Classes/sessions store, mirrored to localStorage (future data-layer seam)
     classes/ history/ insights/ settings/ theme/
   lib/                 Types, helpers, group rules, storage and migrations
 ```

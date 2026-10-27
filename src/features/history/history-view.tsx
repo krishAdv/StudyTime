@@ -39,7 +39,7 @@ export function HistoryView() {
         <EmptyState
           icon={<HistoryIcon className="h-6 w-6" aria-hidden />}
           title="No sessions yet"
-          description="Finished study sessions will show up here with their class, subgroup and duration.."
+          description="Finished study sessions will show up here with their class, subgroup and duration."
           action={
             <Link href="/">
               <Button>Go to timer</Button>

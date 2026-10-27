@@ -34,7 +34,7 @@ Next.js App Router (Next 16, React 19, Tailwind 4), client-side only: no backend
 - `timeframe.ts`: Insights ranges use local calendar, Monday-start weeks. A session is treated as one contiguous block from `startedAt`, so boundary-crossing sessions are split proportionally.
 - `menu-position.ts` + `components/ui/dropdown.tsx`: Insights timeframe dropdown is a portal/fixed-position listbox clamped to the viewport (the old native select could overflow on phones/iPad).
 
-**Provider mutations validate against refs.** `StudyDataProvider` keeps `classesRef`/`sessionsRef` so an action can validate against the latest data and return its result synchronously (two same-name adds in one batch must not both succeed). Keep new mutations on that pattern.
+**Provider mutations validate against refs.** `StudyDataProvider` keeps `classesRef`/`sessionsRef` so an action can validate against the latest data and return its result synchronously (two same-name adds in one batch must not both succeed). Keep new mutations on that pattern. `logSession` is idempotent by session id and follows the delete rules: a session for a class deleted mid-timer is dropped, and one for a deleted subgroup is saved on the class with `groupId: null`.
 
 ## Data and migrations (localStorage)
 
@@ -51,6 +51,7 @@ Vitest config is in `vitest.config.ts` (alias `@`, tests in `tests/`). Component
 
 ## Gotchas
 
-- `README.md` is partly stale (still mentions Pomodoro and unlimited nested groups); trust the code.
+- `docs/PROJECT_STATUS.md` records what is verified, known issues and the next milestone; keep it current.
+- In `next dev`, every route logs `instant-unrendered-segment` because `AppShell` renders a "Loading…" placeholder instead of `children` until hydration. It is development-only and does not affect the build; do not silence it with `instant = false`. Fixing it properly means removing that gate (a larger refactor, see the status doc).
 - `AGENTS.md` says this Next.js version differs from training data; read `node_modules/next/dist/docs/` before using Next APIs.
 - UI is mobile-first (iPhone/iPad, light and dark themes): use the CSS variable tokens in `globals.css` (`bg-card`, `text-muted-foreground`, `text-danger`, …), 44px touch targets, and `text-base sm:text-sm` on inputs to avoid iOS zoom.

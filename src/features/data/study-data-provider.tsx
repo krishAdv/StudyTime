@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import {
   createClass, createGroup, removeGroup, renameClassIn, renameGroupIn, type Result,
 } from "@/lib/class-rules";
+import { findGroup } from "@/lib/class-tree";
 import { removeKnownSeedData } from "@/lib/legacy-seed";
 import { reassignSession, sessionsForGroup } from "@/lib/session-rules";
 import { CLASS_COLORS, DATA_KEY, RESET_BACKUP_KEY, RESET_MARKER_KEY, parseStoredData, serializeData, type StoredData } from "@/lib/storage";
@@ -156,7 +157,13 @@ export function StudyDataProvider({ children }: { children: React.ReactNode }) {
   }, [setSessions]);
 
   const logSession = useCallback((s: Session) => {
-    setSessions((prev) => (prev.some((p) => p.id === s.id) ? prev : [s, ...prev]));
+    // The class or subgroup may have been deleted while the timer was running.
+    // A deleted class takes its sessions with it, and a deleted subgroup leaves
+    // its sessions on the class, so a late save follows the same rules.
+    const cls = classesRef.current.find((c) => c.id === s.classId);
+    if (!cls) return;
+    const session = s.groupId && !findGroup(cls.groups, s.groupId) ? { ...s, groupId: null } : s;
+    setSessions((prev) => (prev.some((p) => p.id === session.id) ? prev : [session, ...prev]));
   }, [setSessions]);
 
   const reassign = useCallback(

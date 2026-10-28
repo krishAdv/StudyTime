@@ -47,6 +47,10 @@ Next.js App Router (Next 16, React 19, Tailwind 4), client-side only: no backend
 - Never delete the `*:pre-flatten-backup`, `*:pre-seed-cleanup-backup`, `*:pre-reset-backup` or `*:corrupt` keys. Theme (`studytime-theme`) and `studytime:countdown-minutes` are separate settings keys.
 - Tests that seed `studytime:data` must first set `RESET_MARKER_KEY`, otherwise the one-time reset wipes the seed.
 
+## Database (supabase/, not used by the app yet)
+
+`supabase/migrations/` holds the planned schema (`classes`, `groups`, `sessions`, `local_imports`), RLS and `import_local_data`; `supabase/README.md` explains the decisions; `supabase/tests/verify.sql` is a manual script. They are **unexecuted**: no Postgres was available, so nothing has been applied or tested. Needs PostgreSQL 15+. Keep the SQL rules in step with `class-rules.ts` / `data-export.ts` (names normalized, group ids unique per user, one level, session group belongs to its class). No Supabase client code or dependency exists yet.
+
 ## Testing notes
 
 Vitest config is in `vitest.config.ts` (alias `@`, tests in `tests/`). Component/provider tests opt into jsdom with `// @vitest-environment jsdom` and use `@testing-library/react` (call `cleanup()` yourself; globals are off) and fake timers for the timer. Browser checks used `playwright-core` driving the installed Chrome against `next start`.

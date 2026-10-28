@@ -57,6 +57,10 @@ The browser script was a throwaway and is not in the repo. Not browser-checked: 
 - No service worker; the app does not work offline.
 - The timer exists only in memory: reloading or closing the tab during a session loses it.
 
+## Database (M2, unverified)
+
+SQL migrations for `classes`, `groups`, `sessions`, `local_imports` and `import_local_data()` are in `supabase/migrations/`, with a manual test script in `supabase/tests/verify.sql`. Written against the app model and rules; reviewed by reading only. No PostgreSQL was available in this environment, so **none of it has been run**: the SQL has not been syntax-checked by a database, the policies and constraints have not been exercised, and `verify.sql` has never executed. Requires PostgreSQL 15+ (Supabase default is 17). Remaining steps: apply to a disposable Supabase project, run `verify.sql`, fix whatever it finds, then update this section.
+
 ## Not implemented
 
 Supabase, accounts and sign-in, cross-device sync, merging imports (import only replaces), Pomodoro, nested subgroups, offline support, manual session entry, session deletion, notifications.
@@ -66,6 +70,7 @@ Supabase, accounts and sign-in, cross-device sync, merging imports (import only 
 Plan Supabase authentication and multi-device synchronization (design first, no code yet). Suggested order:
 
 1. ~~Put localStorage behind a small storage interface~~ Done (Phase 2): `StudyDataStore` in `src/lib/data-store.ts`.
+1c. ~~Database schema, RLS and import SQL~~ Written (M2) in `supabase/`, **not applied or executed anywhere**. See `supabase/README.md`.
 1b. ~~Async-capable store, provider load status, retry, save gating, serialized writes~~ Done (M0). Verified by unit tests with fake async stores only; no real async store or browser run exists yet. A session finished while status is not `ready` is not queued (unreachable today because the timer needs a loaded class); the durable outbox is a later milestone.
 2. Resolve the dev diagnostic above by removing the mount gate, since remote data loads will need a proper loading state anyway.
 3. Decide the data model (classes, subgroups, sessions with stable ids, `updatedAt`, soft delete) and the conflict rules for two devices.

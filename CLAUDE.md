@@ -21,11 +21,12 @@ Before calling a change done, run tests, `tsc`, eslint and `npm run build`; all 
 
 ## Architecture
 
-Next.js App Router (Next 16, React 19, Tailwind 4), client-side only: no backend, auth or Supabase yet. Routes in `src/app/*/page.tsx` are thin wrappers around views in `src/features/*`. Path alias `@/*` → `src/*`.
+Next.js App Router (Next 16, React 19, Tailwind 4), client-side only: no backend. Study data is still local; Supabase is used for sign-in only (M3). Routes in `src/app/*/page.tsx` are thin wrappers around views in `src/features/*`. Path alias `@/*` → `src/*`.
 
-**State is three nested providers** (`src/components/providers.tsx`): Settings → StudyData → Timer.
+**State is nested providers** (`src/components/providers.tsx`): Theme → Settings → Auth → StudyData → Timer.
 - `StudyDataProvider` is the single source of truth for `classes` and `sessions`, mirrored to localStorage (`studytime:data`). Every Insights, History and Classes number is derived from `sessions`; never store totals.
 - `TimerProvider` holds the running session in memory only. Timestamps are the source of truth (the 250ms interval just refreshes the UI), and `stateRef` is read synchronously so a double click or tick racing Stop can't save a session twice. Default mode is Stopwatch (`lib/timer-defaults.ts`); mode is not persisted, only the countdown length is.
+- `AuthProvider` (`features/auth`) exposes `status` (`disabled|loading|signed-out|signed-in`), `user`, `signIn`, `signOut`. It is UI state only (the database trusts the JWT, never this), nothing waits on it, and it never touches `studytime:data`. Email + password only, no in-app sign-up (accounts are created in the Supabase dashboard). `signOut` uses `scope: "local"` so one device doesn't sign out the others. The client comes from `lib/supabase/client.ts` (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`; see `.env.example`) and is `null` when unset, which means local-only (`status: "disabled"`). Never use the service-role key in this app. supabase-js keeps its session in localStorage under `sb-<project-ref>-auth-token`; leave it alone.
 - `AppShell` renders children only after hydration, so providers may read localStorage in their `useState` initializers.
 
 **Domain rules live in pure modules under `src/lib/`, not in components.** Providers route all mutations through them so the rules hold on any code path, and they are written so a database could enforce the same constraints later:
@@ -47,9 +48,9 @@ Next.js App Router (Next 16, React 19, Tailwind 4), client-side only: no backend
 - Never delete the `*:pre-flatten-backup`, `*:pre-seed-cleanup-backup`, `*:pre-reset-backup` or `*:corrupt` keys. Theme (`studytime-theme`) and `studytime:countdown-minutes` are separate settings keys.
 - Tests that seed `studytime:data` must first set `RESET_MARKER_KEY`, otherwise the one-time reset wipes the seed.
 
-## Database (supabase/, not used by the app yet)
+## Database (supabase/, not used for data yet)
 
-`supabase/migrations/` holds the planned schema (`classes`, `groups`, `sessions`, `local_imports`), RLS and `import_local_data`; `supabase/README.md` explains the decisions; `supabase/tests/verify.sql` is a manual script. They are **unexecuted**: no Postgres was available, so nothing has been applied or tested. Needs PostgreSQL 15+. Keep the SQL rules in step with `class-rules.ts` / `data-export.ts` (names normalized, group ids unique per user, one level, session group belongs to its class). No Supabase client code or dependency exists yet.
+`supabase/migrations/` holds the schema (`classes`, `groups`, `sessions`, `local_imports`), RLS and `import_local_data`; `supabase/README.md` explains the decisions; `supabase/tests/verify.sql` is a manual script. Both migrations were applied to the user's Supabase project and `verify.sql` passed. The app does not read or write these tables yet (sync is a later milestone). Needs PostgreSQL 15+. Keep the SQL rules in step with `class-rules.ts` / `data-export.ts` (names normalized, group ids unique per user, one level, session group belongs to its class). The only Supabase code in the app is sign-in (`lib/supabase/client.ts`, `features/auth`).
 
 ## Testing notes
 

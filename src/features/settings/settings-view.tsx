@@ -5,6 +5,7 @@ import { Card, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { useTheme, type ThemePreference } from "@/features/theme/theme-provider";
+import { AccountCard } from "@/features/auth/account-card";
 import { DataTransferCard } from "./data-transfer";
 
 const THEMES = [
@@ -35,10 +36,12 @@ export function SettingsView() {
           <CardTitle>Your data</CardTitle>
           <p className="mt-0.5 text-sm text-muted-foreground">
             Classes, groups, sessions and your theme are saved in this browser on this device. They don’t
-            sync between devices, and clearing site data removes them. Cross-device sync will arrive with accounts
-            in a later update. StudyTime starts empty; add your own classes to begin.
+            sync between devices yet, and clearing site data removes them. Signing in doesn’t change that; syncing
+            will arrive in a later update. StudyTime starts empty; add your own classes to begin.
           </p>
         </Card>
+
+        <AccountCard />
 
         <DataTransferCard />
       </div>

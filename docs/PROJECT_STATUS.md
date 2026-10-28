@@ -4,7 +4,7 @@ Last updated: 2026-10-27 (end of Phase 1: stabilization). Everything below refle
 
 ## What is implemented
 
-- **Stack:** Next.js 16.4.3 (App Router, Turbopack, `cacheComponents` and `partialPrefetching` on), React 19, Tailwind 4, TypeScript. Client-side only: no backend, auth or Supabase.
+- **Stack:** Next.js 16.4.3 (App Router, Turbopack, `cacheComponents` and `partialPrefetching` on), React 19, Tailwind 4, TypeScript. Client-side only: no backend. Supabase is used for sign-in only (M3); study data is still local.
 - **Routes** (thin wrappers around `src/features/*`): `/` Dashboard (timer), `/classes`, `/history`, `/insights`, `/settings`, plus `manifest.webmanifest`.
 - **Timer:** Stopwatch (default) and Countdown. Start, Pause, Resume, Stop. Paused time is not counted. A countdown that reaches zero saves the full target. Sessions under 1 second are not saved. The mode is locked while a session is active. Only the countdown length is remembered.
 - **Classes and subgroups:** create, rename, delete. Subgroups are one level deep. Class names are unique app-wide, subgroup names unique per class (trimmed, spaces collapsed, case-insensitive). The UI disables the button and explains why when a name is a duplicate.
@@ -57,17 +57,27 @@ The browser script was a throwaway and is not in the repo. Not browser-checked: 
 - No service worker; the app does not work offline.
 - The timer exists only in memory: reloading or closing the tab during a session loses it.
 
-## Database (M2, unverified)
+## Database (M2)
 
-SQL migrations for `classes`, `groups`, `sessions`, `local_imports` and `import_local_data()` are in `supabase/migrations/`, with a manual test script in `supabase/tests/verify.sql`. Written against the app model and rules; reviewed by reading only. No PostgreSQL was available in this environment, so **none of it has been run**: the SQL has not been syntax-checked by a database, the policies and constraints have not been exercised, and `verify.sql` has never executed. Requires PostgreSQL 15+ (Supabase default is 17). Remaining steps: apply to a disposable Supabase project, run `verify.sql`, fix whatever it finds, then update this section.
+SQL migrations for `classes`, `groups`, `sessions`, `local_imports` and `import_local_data()` are in `supabase/migrations/`, with a manual test script in `supabase/tests/verify.sql`. Per the owner, both migrations are applied to their Supabase project and `verify.sql` passed all checks (not re-run in this session). An earlier PL/pgSQL syntax error in the import function was fixed before that. The app does not use these tables yet.
+
+## Authentication (M3)
+
+There was no written M3 scope; it was defined as authentication only, no sync. Implemented: email + password sign-in and sign-out in Settings → Account (`features/auth`, `lib/supabase/client.ts`). No in-app sign-up or password reset: accounts are created in the Supabase dashboard (Auto Confirm) and public sign-ups are turned off there, so no email links or redirect URLs are involved. Without `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` the app is local-only and the card says so. Signed-out use, and the local data, are unchanged by signing in or out.
+
+Verified: unit tests (provider states, sign-in/out, errors, local data untouched), and one desktop Chrome run at 390px against `next start` with an unreachable dummy project (form shown, network error shown inline, no overflow, no page errors). **Not verified:** a real sign-in against the live project, iPhone/iPad Safari, the iOS home-screen app keeping the session, token refresh after long idle.
+
+Security notes: only the public anon key is in the browser; the session token lives in localStorage (an XSS bug would expose it, as for any client-only app); sign-out is per device; the UI never sends a user id, so ownership is `auth.uid()` in RLS and column defaults.
+
+Later: sign-up or password reset need redirect-URL configuration; the first-login upload (`import_local_data`) and sync belong to the sync milestone.
 
 ## Not implemented
 
-Supabase, accounts and sign-in, cross-device sync, merging imports (import only replaces), Pomodoro, nested subgroups, offline support, manual session entry, session deletion, notifications.
+Cross-device sync, in-app sign-up and password reset, merging imports (import only replaces), Pomodoro, nested subgroups, offline support, manual session entry, session deletion, notifications.
 
 ## Next milestone
 
-Plan Supabase authentication and multi-device synchronization (design first, no code yet). Suggested order:
+Sign-in is done (M3). Next: multi-device synchronization (design first). Suggested order:
 
 1. ~~Put localStorage behind a small storage interface~~ Done (Phase 2): `StudyDataStore` in `src/lib/data-store.ts`.
 1c. ~~Database schema, RLS and import SQL~~ Written (M2) in `supabase/`, **not applied or executed anywhere**. See `supabase/README.md`.

@@ -1,6 +1,6 @@
 # StudyTime database (Supabase)
 
-Status: **written, not yet applied or tested against a real database.** Nothing in the app uses it yet.
+Status: both migrations applied to the owner's Supabase project and `tests/verify.sql` passed. The app uses Supabase for sign-in only (M3); it does not read or write these tables yet.
 
 ## Files
 

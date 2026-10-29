@@ -56,3 +56,7 @@ Because the import is atomic, an incomplete import cannot exist. After a lost re
 ## Not verified yet / needs a live project
 
 Everything in this directory is unexecuted. In particular still to confirm on a real PostgreSQL 15+ / Supabase instance: that both migrations apply cleanly; the column-list `SET NULL` foreign key and the class-delete cascade together; RLS and column grants behave as the script expects; `import_local_data` runs as `authenticated` under an empty `search_path`; and that the test script's `auth.users` inserts are accepted by your project.
+
+## Note for M4 (sync): direct table writes bypass a revision gate
+
+Authenticated users have direct insert/delete (and limited update) grants on the data tables, restricted to their own rows by RLS. A future revision check in RPCs (see `docs/M4-SYNC-PLAN.md`) would not apply to a client that writes to the tables directly. Our app will only use the RPCs, which is enough for a private two-person app, but stronger server-enforced write control (definer RPCs plus revoked direct DML, or revision-bumping triggers) should be reviewed before any public release. Nothing here has been changed.

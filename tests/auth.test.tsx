@@ -24,6 +24,7 @@ function fakeClient(opts: { session?: Session; getSession?: () => Promise<{ data
     }),
     signInWithPassword: vi.fn<AuthClient["auth"]["signInWithPassword"]>(async () => ({ error: null })),
     signOut: vi.fn<AuthClient["auth"]["signOut"]>(async () => ({ error: null })),
+    updateUser: vi.fn<AuthClient["auth"]["updateUser"]>(async () => ({ error: null })),
   };
   return { client: { auth } as AuthClient, auth, unsubscribe, emit: (e: string, s: Session) => listener?.(e, s) };
 }
@@ -171,7 +172,7 @@ describe("AccountCard", () => {
   function renderCard(client: AuthClient | null) {
     return render(
       <AuthProvider client={client}>
-        <AccountCard />
+        <AccountCard timerActive={false} />
       </AuthProvider>,
     );
   }

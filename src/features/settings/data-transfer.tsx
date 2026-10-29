@@ -7,6 +7,7 @@ import { Card, CardTitle } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/dialogs";
 import { useStudyData } from "@/features/data/study-data-provider";
 import { useTimer } from "@/features/timer/timer-provider";
+import { downloadText } from "@/lib/download";
 import { MAX_IMPORT_BYTES, exportFileName, parseExport, serializeExport } from "@/lib/data-export";
 import type { StoredData } from "@/lib/storage";
 
@@ -29,14 +30,7 @@ export function DataTransferCard() {
     setNotice(null);
     try {
       const text = serializeExport({ classes: data.classes, sessions: data.sessions });
-      const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = exportFileName();
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+      downloadText(text, exportFileName());
       setNotice({
         kind: "ok",
         text: `Export started: ${count(data.classes.length, "class", "classes")} and ${count(data.sessions.length, "session", "sessions")}. Check your downloads.`,

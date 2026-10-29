@@ -8,8 +8,9 @@ import { getSupabase } from "@/lib/supabase/client";
  * Who is signed in. This is for the UI only: the database never trusts it. Every request
  * carries the user's JWT and Row Level Security uses auth.uid() from that token.
  *
- * Accounts do not change where study data lives yet (still localStorage), and nothing waits
- * on this provider: signed-out, loading and "not configured" all leave the app fully usable.
+ * Study data still lives in localStorage (M4.1 scopes it per account in AccountBoundary; nothing
+ * syncs yet). This provider only reports who is signed in. "Not configured" (`disabled`) keeps
+ * the app local-only; with Supabase configured, AccountBoundary shows a sign-in wall until signed in.
  */
 export type AuthUser = { id: string; email: string | null };
 
@@ -27,6 +28,7 @@ export type AuthClient = {
     ): { data: { subscription: { unsubscribe(): void } } };
     signInWithPassword(credentials: { email: string; password: string }): Promise<{ error: AuthError }>;
     signOut(options?: { scope: "local" }): Promise<{ error: AuthError }>;
+    updateUser(attributes: { password: string }): Promise<{ error: AuthError }>;
   };
 };
 
@@ -35,6 +37,8 @@ type AuthContextValue = {
   user: AuthUser | null;
   signIn: (email: string, password: string) => Promise<Result>;
   signOut: () => Promise<Result>;
+  /** Signed-in only. Re-checks the current password first, then sets the new one. */
+  changePassword: (currentPassword: string, newPassword: string) => Promise<Result>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -51,6 +55,8 @@ export function describeAuthError(error: AuthError | unknown): string {
   if (e.status === 400) return "Incorrect email or password.";
   return "Couldn’t sign in. Try again in a moment.";
 }
+
+export const MIN_PASSWORD_LENGTH = 8;
 
 const toUser = (u: { id: string; email?: string }): AuthUser => ({ id: u.id, email: u.email ?? null });
 
@@ -128,9 +134,50 @@ export function AuthProvider({
     }
   }, [client]);
 
+  const email = state.user?.email ?? null;
+  const signedIn = state.status === "signed-in";
+  const changePassword = useCallback(
+    async (currentPassword: string, newPassword: string): Promise<Result> => {
+      if (!client || !signedIn || !email) return { ok: false, error: "Sign in to change your password." };
+      if (!currentPassword) return { ok: false, error: "Enter your current password." };
+      if (newPassword.length < MIN_PASSWORD_LENGTH) {
+        return { ok: false, error: `Use at least ${MIN_PASSWORD_LENGTH} characters for the new password.` };
+      }
+      if (newPassword === currentPassword) return { ok: false, error: "Choose a password you aren’t using now." };
+      try {
+        // updateUser doesn't check the old password, so confirm it first. Same account, so
+        // the resulting auth event keeps the same user id and nothing remounts.
+        const check = await client.auth.signInWithPassword({ email, password: currentPassword });
+        if (check.error) {
+          const e = check.error;
+          return {
+            ok: false,
+            error:
+              e.code === "invalid_credentials" || e.status === 400
+                ? "Your current password is incorrect."
+                : describeAuthError(e),
+          };
+        }
+        const { error } = await client.auth.updateUser({ password: newPassword });
+        if (!error) return { ok: true, value: undefined };
+        if (error.code === "weak_password") {
+          return { ok: false, error: "That password is too easy to guess. Choose a longer or less common one." };
+        }
+        if (error.code === "same_password") return { ok: false, error: "Choose a password you aren’t using now." };
+        if (error.name === "AuthRetryableFetchError" || error.status === 0 || error.status === undefined) {
+          return { ok: false, error: NETWORK_MESSAGE };
+        }
+        return { ok: false, error: "Couldn’t change your password. Try again in a moment." };
+      } catch (e) {
+        return { ok: false, error: describeAuthError(e) };
+      }
+    },
+    [client, signedIn, email],
+  );
+
   const value = useMemo<AuthContextValue>(
-    () => ({ status: state.status, user: state.user, signIn, signOut }),
-    [state, signIn, signOut],
+    () => ({ status: state.status, user: state.user, signIn, signOut, changePassword }),
+    [state, signIn, signOut, changePassword],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -1,10 +1,10 @@
 # StudyTime project status
 
-Last updated: 2026-10-27 (end of Phase 1: stabilization). Everything below reflects the code and the checks actually run on that date.
+Last updated: 2026-10-27 (M4.0 and M4.1 added after Phase 1). Everything below reflects the code and the checks actually run on that date.
 
 ## What is implemented
 
-- **Stack:** Next.js 16.4.3 (App Router, Turbopack, `cacheComponents` and `partialPrefetching` on), React 19, Tailwind 4, TypeScript. Client-side only: no backend. Supabase is used for sign-in only (M3); study data is still local.
+- **Stack:** Next.js 16.4.3 (App Router, Turbopack, `cacheComponents` and `partialPrefetching` on), React 19, Tailwind 4, TypeScript. Client-side only: no backend. Supabase is used for sign-in only (M3); study data is still local, now kept per signed-in account on the device (M4.1).
 - **Routes** (thin wrappers around `src/features/*`): `/` Dashboard (timer), `/classes`, `/history`, `/insights`, `/settings`, plus `manifest.webmanifest`.
 - **Timer:** Stopwatch (default) and Countdown. Start, Pause, Resume, Stop. Paused time is not counted. A countdown that reaches zero saves the full target. Sessions under 1 second are not saved. The mode is locked while a session is active. Only the countdown length is remembered.
 - **Classes and subgroups:** create, rename, delete. Subgroups are one level deep. Class names are unique app-wide, subgroup names unique per class (trimmed, spaces collapsed, case-insensitive). The UI disables the button and explains why when a name is a duplicate.
@@ -33,7 +33,7 @@ Last updated: 2026-10-27 (end of Phase 1: stabilization). Everything below refle
 
 | Check | Result (2026-10-27) |
 | --- | --- |
-| `npm test` | 11 files, 105 tests pass |
+| `npm test` | 22 files, 224 tests pass |
 | `npx tsc --noEmit` | no errors |
 | `npx eslint` | no output |
 | `npm run build` | succeeds, 7 routes prerendered, no warnings |
@@ -63,7 +63,7 @@ SQL migrations for `classes`, `groups`, `sessions`, `local_imports` and `import_
 
 ## Authentication (M3)
 
-There was no written M3 scope; it was defined as authentication only, no sync. Implemented: email + password sign-in and sign-out in Settings → Account (`features/auth`, `lib/supabase/client.ts`). No in-app sign-up or password reset: accounts are created in the Supabase dashboard (Auto Confirm) and public sign-ups are turned off there, so no email links or redirect URLs are involved. Without `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` the app is local-only and the card says so. Signed-out use, and the local data, are unchanged by signing in or out.
+There was no written M3 scope; it was defined as authentication only, no sync. Implemented: email + password sign-in and sign-out in Settings → Account (`features/auth`, `lib/supabase/client.ts`). No in-app sign-up or password reset: accounts are created in the Supabase dashboard (Auto Confirm) and public sign-ups are turned off there, so no email links or redirect URLs are involved. Without `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` the app is local-only and the card says so. (Superseded by M4.1: with Supabase configured, signed-out users now see a sign-in wall and each account has its own local bucket.)
 
 Verified: unit tests (provider states, sign-in/out, errors, local data untouched), and one desktop Chrome run at 390px against `next start` with an unreachable dummy project (form shown, network error shown inline, no overflow, no page errors). **Not verified:** a real sign-in against the live project, iPhone/iPad Safari, the iOS home-screen app keeping the session, token refresh after long idle.
 
@@ -71,9 +71,21 @@ Security notes: only the public anon key is in the browser; the session token li
 
 Later: sign-up or password reset need redirect-URL configuration; the first-login upload (`import_local_data`) and sync belong to the sync milestone.
 
+## M4.0 and M4.1: per-account local data (no sync)
+
+Details and the full plan are in `docs/M4-SYNC-PLAN.md`.
+
+**Implemented and tested (jsdom):** with Supabase configured, a sign-in wall replaces the app until signed in and no study data is read or rendered while signed out or checking sign-in. Signed-in users get their own localStorage bucket `studytime:u:<userId>:data`; the data and timer providers remount when the account changes. Sign-out and account switches delete nothing and never touch the legacy `studytime:data` bucket or any backup key. Without Supabase variables the app is local-only exactly as before. Settings can block sign-out while a timer runs, shows a "Saved before accounts" card (counts and a confirmed download only), and offers in-app password change.
+
+**Still not done (planned, M4.2 onward):** any upload or sync, linking legacy data to an account, conflict handling, new database objects. No migration, RPC or RLS policy was changed.
+
+**Known limitations:** a new account on a device with legacy data starts empty (restore via download and Backup → Import until M4.3); an involuntary sign-out discards a running timer unsaved (never saves it into another account); isolation is UI-level, not encryption; two tabs can overwrite each other (pre-existing). Not verified: a real sign-in against the live project, real browsers, iPhone/iPad Safari.
+
+Tests added for M4.0/M4.1: `account-store`, `account-boundary` (isolation, sign-out, switching, loading, legacy preservation), `timer-account-safety`, `account-ui` (password change, legacy card), plus updates to `auth.test.tsx`. Test helpers are in `tests/helpers/`.
+
 ## Not implemented
 
-Cross-device sync, in-app sign-up and password reset, merging imports (import only replaces), Pomodoro, nested subgroups, offline support, manual session entry, session deletion, notifications.
+Cross-device sync, uploading or linking legacy data to an account, in-app sign-up and password reset by email, merging imports (import only replaces), Pomodoro, nested subgroups, offline support, manual session entry, session deletion, notifications.
 
 ## Next milestone
 

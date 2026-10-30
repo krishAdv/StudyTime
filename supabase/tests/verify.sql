@@ -1,7 +1,10 @@
 -- StudyTime M2: manual verification script. NOT YET RUN against any database.
 --
 -- Run it ONLY on a disposable Supabase project (or a local `supabase start`), after
--- applying both files in supabase/migrations/. It creates fake users and data inside
+-- applying the first two files in supabase/migrations/ and BEFORE the M4.2 sync
+-- migration (20261029120000): that migration revokes the direct writes and the direct
+-- import call this script exercises, so it cannot pass after it. Use
+-- tests/sync_verify.sql for the state after M4.2. It creates fake users and data inside
 -- ONE transaction and ends with ROLLBACK, so it leaves nothing behind. Any failed
 -- check raises an exception and stops the script.
 --

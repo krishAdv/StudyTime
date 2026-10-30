@@ -22,7 +22,7 @@ Before calling a change done, run tests, `tsc`, eslint and `npm run build`; all 
 
 ## Architecture
 
-Next.js App Router (Next 16, React 19, Tailwind 4), client-side only: no backend. Study data is still local (kept per signed-in account since M4.1); Supabase is used for sign-in only (M3). No sync yet; see `docs/M4-SYNC-PLAN.md`. Routes in `src/app/*/page.tsx` are thin wrappers around views in `src/features/*`. Path alias `@/*` → `src/*`.
+Next.js App Router (Next 16, React 19, Tailwind 4), client-side only. Study data is local (per signed-in account); Supabase is sign-in only. No sync yet (`docs/M4-SYNC-PLAN.md`). Routes in `src/app/*/page.tsx` are thin wrappers around views in `src/features/*`. Path alias `@/*` → `src/*`.
 
 **State is nested providers** (`src/components/providers.tsx`): Theme → Settings → Auth → `AccountBoundary` → (StudyData → Timer, mounted per owner).
 - `AccountBoundary` (`features/data/account-boundary.tsx`) picks the data owner: `disabled` (no Supabase env) → legacy bucket `studytime:data`; `loading`/`signed-out` → `SignInWall`, no data provider mounted, nothing read; `signed-in` → bucket `studytime:u:<userId>:data` via `lib/account-store.ts`, keyed by user id so an account change remounts StudyData and Timer (a running timer can never be saved into another account). Account stores do no reset/migrations/backups; sign-out deletes nothing; the legacy bucket and all `*:pre-*-backup`/`*:corrupt` keys are never touched by accounts. `peekLegacyData` reads the legacy bucket read-only.
@@ -53,7 +53,9 @@ Next.js App Router (Next 16, React 19, Tailwind 4), client-side only: no backend
 
 ## Database (supabase/, not used for data yet)
 
-`supabase/migrations/` holds the schema (`classes`, `groups`, `sessions`, `local_imports`), RLS and `import_local_data`; `supabase/README.md` explains the decisions; `supabase/tests/verify.sql` is a manual script. Both migrations were applied to the user's Supabase project and `verify.sql` passed. The app does not read or write these tables yet (sync is a later milestone). Needs PostgreSQL 15+. Keep the SQL rules in step with `class-rules.ts` / `data-export.ts` (names normalized, group ids unique per user, one level, session group belongs to its class). The only Supabase code in the app is sign-in (`lib/supabase/client.ts`, `features/auth`).
+`supabase/migrations/` holds the schema, RLS and `import_local_data` (applied to the user's project; see `supabase/README.md`). The M4.2 migration (`20261029120000_studytime_sync.sql`: `sync_state`, `pull_snapshot`, `push_changes`, `import_and_init_sync`) is applied to a separate Supabase test project only and **not to production** (it passed the SQL suites there and a core API check: 43 checks, isolation and direct-write denial verified; the concurrency stress check, the 1,000-row snapshot case and a real two-connection lock test are untested); it revokes direct client writes to the data tables, so all writes go through definer RPCs. The app does not read or write these tables yet. Needs PostgreSQL 15+. Keep the SQL rules in step with `class-rules.ts` / `data-export.ts` (names normalized, group ids unique per user, one level, session group belongs to its class). The only Supabase code in the app is sign-in (`lib/supabase/client.ts`, `features/auth`).
+
+**Never run SQL, `supabase db push` or `supabase db reset --linked` against the linked project** (`supabase/.temp/project-ref` and `.env.local` point at production). SQL tests (`tests/verify.sql`, then the sync migration, then `tests/sync_verify.sql`) go on a separate test project or local Supabase only; `verify.sql` must run before the sync migration.
 
 ## Testing notes
 

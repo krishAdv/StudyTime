@@ -19,7 +19,7 @@ Status key: **Implemented** (in the code and covered by tests), **Planned** (not
 | --- | --- | --- |
 | M4.0 | **Implemented** | Test helpers: `tests/helpers/fake-auth.ts` (fake Supabase auth that signs in/out, switches users, emits token-refresh events) and `tests/helpers/memory-storage.ts` (records every read and write). Decisions recorded here. A fake sync backend was **not** built: nothing uses it until M4.2/M4.4. |
 | M4.1 | **Implemented** | Per-account local storage, sign-in wall, provider remount per account, sign-out guard while a timer runs, read-only legacy-data notice and download, in-app password change. No network sync. |
-| M4.2 | Planned | Migration: `sync_state`, `pull_snapshot()`, `push_changes()`, `import_and_init_sync()`; SQL tests. Needs a test environment first. |
+| M4.2 | **Verified on a test project; not applied to production** | Migration `20261029120000_studytime_sync.sql` (`sync_state`, `pull_snapshot()`, `push_changes()`, `import_and_init_sync()`, direct writes revoked) and `supabase/tests/sync_verify.sql`. Passed on local PGlite (shimmed), the SQL suites on a separate Supabase test project (owner-reported) and the core API verification there (43 checks, 0 failed, cleanup verified clean). Not yet tested: the 20-request concurrency stress check, the 1,000-row snapshot case, a real two-connection lock test. Not applied to production. Details in `supabase/README.md`. |
 | M4.3 | Planned | First link: upload or adopt legacy data with named confirmation, read-back verification. |
 | M4.4 | Planned | Push/pull engine, three-way merge, retry/backoff, sync status UI. |
 | M4.5 | Planned | Polling, focus/online triggers, multi-tab safety. |
@@ -49,11 +49,9 @@ Recommended sync design for M4.2+ (unchanged from the plan): a per-user revision
 - Local save failures (quota, private mode) are swallowed, as in the legacy store; the account store does not surface them.
 - Not verified: a real sign-in against the live project, iPhone/iPad Safari, the iOS home-screen app keeping the session.
 
-## Security note: direct table writes bypass the revision gate
+## Security note: direct table writes (closed in the M4.2 migration; verified on a test project, not applied to production)
 
-The deployed schema gives `authenticated` direct insert/delete (and limited update) grants on `classes`, `groups` and `sessions`, with RLS restricting rows to `auth.uid()`. The planned revision check lives in RPCs (M4.2), so a client that writes to the tables directly would not be checked against it. Row isolation between users still holds (RLS); what is lost is the protection against a stale device overwriting newer data from the same user. Our own client will only write through the RPCs, which is acceptable for a two-person private app.
-
-**Flag for review before any public release:** enforce the gate on the server (RPCs as `SECURITY DEFINER` using `auth.uid()` with explicit checks, and revoke direct insert/update/delete on the data tables, or add triggers that bump the revision on any write). That reverses a deliberate M2 choice (`SECURITY INVOKER`), so it needs its own review. Nothing was changed in M4.0/M4.1.
+The deployed M2 schema lets `authenticated` write the data tables directly (RLS limits rows to the owner), which would bypass a revision check. The M4.2 migration closes this: it revokes insert/update/delete on the data tables (and insert on `local_imports`) from `authenticated` and routes all writes through `SECURITY DEFINER` RPCs that derive the owner from `auth.uid()`. This reverses the M2 "invoker only" choice on purpose; the rules that make it safe are in the migration header and `supabase/README.md`. Residual risk: `service_role`, the dashboard and the `postgres` role still bypass the gate. On the test project all 13 direct write attempts were denied with `42501`. Production still has the M2 grants until the migration is applied there.
 
 ## Test environment before M4.2
 

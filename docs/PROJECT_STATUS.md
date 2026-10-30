@@ -83,6 +83,19 @@ Details and the full plan are in `docs/M4-SYNC-PLAN.md`.
 
 Tests added for M4.0/M4.1: `account-store`, `account-boundary` (isolation, sign-out, switching, loading, legacy preservation), `timer-account-safety`, `account-ui` (password change, legacy card), plus updates to `auth.test.tsx`. Test helpers are in `tests/helpers/`.
 
+## M4.2: sync migration (verified on a separate test project; NOT applied to production)
+
+`supabase/migrations/20261029120000_studytime_sync.sql` adds `sync_state`, `pull_snapshot()`, `push_changes()` and `import_and_init_sync()`, and revokes direct client writes to the data tables. No app code changed.
+
+**Verified (2026-10-29):**
+- PGlite (local, shimmed): `verify.sql` 91 checks and `sync_verify.sql` 228 checks passed. This is not Supabase validation.
+- Separate test project (ref `tjvpwextkocihvoevffo`): the owner reports that both M2 migrations, the sync migration, `verify.sql` and `sync_verify.sql` ran successfully there (not re-run in this session).
+- Core API verification on the test project, using supabase-js, the public publishable key and two test accounts: exit code 0, 43 checks passed, 0 failed. Both users signed in as distinct users; all safety guards passed; user isolation passed; forged ownership fields in a payload were ignored (the row landed in the sender's account only); all 13 direct write attempts were denied with `42501`; RPC permission checks and anonymous-access checks passed; stale, future and replayed revisions were all returned as `stale` and wrote nothing; cleanup was verified clean and no test-created rows remain. The `sync_state` revision counters were intentionally left at 2 for both test users.
+
+**Not tested:** the optional 20-request concurrency stress check; the 1,000-row snapshot case (and larger sizes); a real two-connection lock test; direct local decoding of the publishable key's project and role claims (the test project accepted the key and it is not a secret key).
+
+**Not production-ready:** the migration is not applied to production, the remaining items above are open, and the client sync engine (M4.3 onward) does not exist. Details, risks and the test steps: `supabase/README.md`.
+
 ## Not implemented
 
 Cross-device sync, uploading or linking legacy data to an account, in-app sign-up and password reset by email, merging imports (import only replaces), Pomodoro, nested subgroups, offline support, manual session entry, session deletion, notifications.
@@ -92,7 +105,7 @@ Cross-device sync, uploading or linking legacy data to an account, in-app sign-u
 Sign-in is done (M3). Next: multi-device synchronization (design first). Suggested order:
 
 1. ~~Put localStorage behind a small storage interface~~ Done (Phase 2): `StudyDataStore` in `src/lib/data-store.ts`.
-1c. ~~Database schema, RLS and import SQL~~ Written (M2) in `supabase/`, **not applied or executed anywhere**. See `supabase/README.md`.
+1c. ~~Database schema, RLS and import SQL~~ Written (M2) in `supabase/`. **Owner-reported:** the M2 migrations and `tests/verify.sql` were run on the separate Supabase test project (not independently re-run in this session). **Verified in this session:** the M2 migrations and `verify.sql` also passed on local PGlite, and the M4.2 migration plus the core API verification were executed on the separate test project (results in "M4.2: sync migration" above). The M4.2 migration has not been applied to production. See `supabase/README.md`.
 1b. ~~Async-capable store, provider load status, retry, save gating, serialized writes~~ Done (M0). Verified by unit tests with fake async stores only; no real async store or browser run exists yet. A session finished while status is not `ready` is not queued (unreachable today because the timer needs a loaded class); the durable outbox is a later milestone.
 2. Resolve the dev diagnostic above by removing the mount gate, since remote data loads will need a proper loading state anyway.
 3. Decide the data model (classes, subgroups, sessions with stable ids, `updatedAt`, soft delete) and the conflict rules for two devices.

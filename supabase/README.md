@@ -1,6 +1,6 @@
 # StudyTime database (Supabase)
 
-Status: the first two migrations are applied to the owner's Supabase project and `tests/verify.sql` passed. The M4.2 sync migration (`20261029120000_studytime_sync.sql`) is applied to a **separate test project only** (ref `tjvpwextkocihvoevffo`) and is **not applied to production**. It has passed the PGlite run, the SQL suites on the test project (as reported by the owner) and the core API verification below. That is not a production-readiness sign-off: see "Not yet tested". The app uses Supabase for sign-in only (M3); it does not read or write these tables yet.
+Status: the first two migrations are applied to the owner's Supabase project and `tests/verify.sql` passed. The M4.2 sync migration (`20261029120000_studytime_sync.sql`) is applied to a **separate test project only** (ref `tjvpwextkocihvoevffo`) and is **not applied to production**. It has passed the PGlite run, the SQL suites on the test project (as reported by the owner) and the core API verification below. The Replace cloud checks also passed there: Stage A (`tests/replace_cloud_check.sql`, SQL) and Stage B (the real API through the app's adapter), owner-reported. That is not a production-readiness sign-off: see "Not yet tested". The app uses Supabase for sign-in, and, only when sync is enabled (build flag plus per-device opt-in), for the three sync RPCs.
 
 ## Files
 
@@ -63,7 +63,7 @@ Because the import is atomic, an incomplete import cannot exist. After a lost re
 
 **Production:** the M4.2 migration has not been applied to production.
 
-**Still not independently verified on real Supabase:** the column-list `SET NULL` foreign key and the class-delete cascade together (PGlite and the owner's run only); that `import_local_data` succeeds under an empty `search_path` for a real signed-in user (the API check exercised only its refusal path, `ST002`); and that the test script's `auth.users` inserts are accepted by the project (owner-reported).
+**Still not independently verified on real Supabase:** that `import_local_data` succeeds under an empty `search_path` for a real signed-in user (the API check exercised only its refusal path, `ST002`); and that the test script's `auth.users` inserts are accepted by the project (owner-reported).
 
 ## M4.2: sync primitives (verified on a test project; not applied to production)
 
@@ -105,7 +105,7 @@ Limits: 5,000 changes and 4 MB per push; 1,000 classes, 1,000 subgroups per clas
 
 ### How to test safely (nothing here touches production)
 
-This repo is **linked to the production project**: `supabase/.temp/project-ref` is committed and `.env.local` holds its URL. Do not run `supabase db push` or `supabase db reset --linked`, and do not paste SQL into that project's SQL editor.
+This checkout is **linked to the production project**: `supabase/.temp/project-ref` (the Supabase CLI's local link metadata, gitignored and not committed) and `.env.local` (also gitignored) hold production's reference and URL. After a fresh clone nothing is linked until `supabase link` is run. Do not run `supabase db push` or `supabase db reset --linked`, and do not paste SQL into that project's SQL editor.
 
 Option 1, a second free Supabase project (no Docker needed):
 1. Create a project named e.g. `studytime-test` (PostgreSQL 15 or newer). Check that its project ref differs from the production one.
@@ -153,4 +153,4 @@ What this does not prove: the connection role was a superuser (the real `postgre
 - The 1,000-row snapshot case: `pull_snapshot` through the API with more than 1,000 rows, and its response size and timeout at larger sizes.
 - A real two-connection lock test (the manual two-session check above).
 - Direct local decoding of the publishable key's project and role claims: the key format cannot be decoded locally, so its project and role were not checked by the script. The test project accepted it, and the key was confirmed not to be a secret key.
-- Production: the migration has not been applied to production, and nothing here says the whole sync system is ready for production. The client sync engine (M4.3 onward) does not exist yet.
+- Production: the migration has not been applied to production, and nothing here says the whole sync system is ready for production. The client sync engine exists behind a build flag and a per-device opt-in (off by default) and has been verified against the fake server and, for Replace cloud, on the test project; it has not been run on real devices.

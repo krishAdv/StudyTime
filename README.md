@@ -2,7 +2,7 @@
 
 A mobile-first study timer and class organizer, built to be used on iPhone and iPad.
 
-**Status: per-account local data (M4.1).** There is no backend for study data and no cross-device sync; data is saved in this browser only. Supabase is used for email + password sign-in, and when it is configured each account gets its own local data on the device. Without Supabase variables the app is local-only.
+**Status: per-account local data (M4.1), plus optional cloud sync that is off by default (M4.3).** Study data is always saved in this browser on this device first, per signed-in account. Supabase is used for email + password sign-in and, only in a build made with `NEXT_PUBLIC_STUDYTIME_SYNC=1` and only after you turn it on for a device in Settings, to sync study data between your devices. The sync logic is implemented and tested against an in-memory fake server, and the database functions and the Replace cloud operation have been verified on a separate Supabase test project; sync has not been run in the app on real devices, and its database migration has not been applied to the production project. Without Supabase variables, or without the sync flag, the app is local-only.
 
 ## Run locally
 
@@ -35,15 +35,15 @@ To try it on a phone or iPad on the same network, run `npm run dev -- -H 0.0.0.0
 | Classes | Create, rename and delete classes; one level of subgroups per class, with breadcrumb navigation; per-class and per-subgroup time totals. Class names are unique app-wide and subgroup names are unique within a class (case-insensitive). |
 | History | Sessions grouped by day, filter by class, empty states. Tap a session to change its class or subgroup. |
 | Insights | Daily and weekly charts, class breakdown, current and longest streak. |
-| Settings | Light / dark / system theme; Account (sign-in, sign-out, change password); Backup (export study data to JSON, or import one to replace current data); a card for data saved before accounts. The countdown length is set on the Dashboard and remembered. |
+| Settings | Light / dark / system theme; Account (sign-in, sign-out, change password); Sync between devices (shown only in a build with sync enabled; off until you turn it on for a device); Backup (export study data to JSON, or import one to replace current data); a card for data saved before accounts. The countdown length is set on the Dashboard and remembered. |
 
 See [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md) for what has been verified, known issues and the next milestone.
 
 ## Mocked or unfinished
 
-- StudyTime starts empty. Classes, subgroups and sessions are saved in `localStorage` on this device, per signed-in account when Supabase is configured (no sync). Insights are computed from your saved sessions.
+- StudyTime starts empty. Classes, subgroups and sessions are saved in `localStorage` on this device, per signed-in account when Supabase is configured. With sync turned on for a device (optional, see the status above) they are also kept in step with your other devices through your Supabase account. Insights are computed from your saved sessions.
 - `src/lib/legacy-seed.ts` only recognises the old sample records for a one-time cleanup; it is never loaded as data.
-- Sign-in needs `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` (see `.env.example`); accounts are created in the Supabase dashboard (no in-app sign-up). Study data does not sync between devices; the database schema in `supabase/` is not used for data yet.
+- Sign-in needs `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`, set in `.env.local` for local runs or in the host's environment settings (there is no `.env.example` file); accounts are created in the Supabase dashboard (no in-app sign-up). Cloud sync additionally needs the build flag `NEXT_PUBLIC_STUDYTIME_SYNC=1` and a per-device opt-in in Settings. The schema, row-level security and sync functions in `supabase/` are what sync uses, through three RPCs only; the sync migration (`supabase/migrations/20261029120000_studytime_sync.sql`) is applied to a separate test project, not to production, so nothing can sync against production yet. See `supabase/README.md`.
 - Next.js dev mode logs an `instant-unrendered-segment` diagnostic on every route; see the status doc.
 
 ## PWA status

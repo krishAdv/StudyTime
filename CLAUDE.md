@@ -16,6 +16,10 @@ npm test                     # vitest run (all tests)
 npx vitest run tests/timeframe.test.ts          # one file
 npx vitest run -t "week boundaries"             # by test name
 node scripts/generate-icons.mjs                 # regenerate PNG app icons in public/icons
+
+# Sync verification scripts (test project only; they ignore .env.local and refuse production, see docs/REPLACE-CLOUD-TEST-PLAN.md)
+npx vite-node -c scripts/vite.scripts.config.ts scripts/sync-preflight.ts app|db
+npx vite-node -c scripts/vite.scripts.config.ts scripts/stage-b/replace-cloud-check.ts [--offline|--cleanup]
 ```
 
 Before calling a change done, run tests, `tsc`, eslint and `npm run build`; all four currently pass.
@@ -47,7 +51,7 @@ Next.js App Router (Next 16, React 19, Tailwind 4), client-side only. Study data
 - Payload `{version, classes, sessions}`; current `DATA_VERSION = 2` (`lib/storage.ts`). `parseStoredData` also accepts v1 and sanitizes input.
 - Groups are exactly one level deep. Older nested data is flattened on load (`flattenLegacyGroups`): ids kept so sessions stay valid, nested names become "Parent › Child", original saved to `studytime:data:pre-flatten-backup`.
 - `lib/legacy-seed.ts` only recognizes the old sample data for the v1→v2 cleanup (backup: `studytime:data:pre-seed-cleanup-backup`). It is never loaded as data; fresh installs start empty.
-- A one-time reset ran via marker `studytime:reset:2026-10-27` (`loadInitial` in `study-data-provider.tsx`); it copies the old data to `studytime:data:pre-reset-backup` and must never become recurring.
+- A one-time reset ran via marker `studytime:reset:2026-10-27` (`RESET_MARKER_KEY` in `lib/storage.ts`, applied in `createLocalStorageStore` in `lib/data-store.ts`); it copies the old data to `studytime:data:pre-reset-backup` and must never become recurring.
 - Never delete the `*:pre-flatten-backup`, `*:pre-seed-cleanup-backup`, `*:pre-reset-backup` or `*:corrupt` keys. Theme (`studytime-theme`) and `studytime:countdown-minutes` are separate settings keys.
 - Tests that seed `studytime:data` must first set `RESET_MARKER_KEY`, otherwise the one-time reset wipes the seed. Account buckets have no reset. Shared test helpers (`tests/helpers/fake-auth.ts`, `memory-storage.ts`) fake Supabase auth with user switching and record storage reads/writes.
 - `AccountCard` takes a required `timerActive` prop (Settings passes it) so sign-out is blocked while a timer runs.

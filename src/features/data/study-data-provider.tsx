@@ -2,14 +2,15 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
-  createClass, createGroup, removeGroup, renameClassIn, renameGroupIn, type Result,
+  createClass, createGroup, removeGroup, renameClassIn, renameGroupIn, updateClassIn, type Result,
 } from "@/lib/class-rules";
 import { findGroup } from "@/lib/class-tree";
 import { localStorageStore, type StudyDataStore } from "@/lib/data-store";
 import { validateStudyData } from "@/lib/data-export";
 import { createSerialWriter, isPromise } from "@/lib/serial-writer";
 import { reassignSession, sessionsForGroup } from "@/lib/session-rules";
-import { CLASS_COLORS, type StoredData } from "@/lib/storage";
+import { defaultClassColor } from "@/lib/class-colors";
+import type { StoredData } from "@/lib/storage";
 import type { ClassItem, Session } from "@/lib/types";
 import { uid } from "@/lib/utils";
 
@@ -40,8 +41,11 @@ type StudyData = {
   classes: ClassItem[];
   sessions: Session[];
   /** Mutations validate first and return the reason when they are rejected; nothing changes then. */
-  addClass: (name: string) => Result;
+  /** `color` (`#rrggbb`) is optional; without it the class gets the first preset no class uses yet. */
+  addClass: (name: string, color?: string) => Result;
   renameClass: (id: string, name: string) => Result;
+  /** Changes a class's name and/or color atomically; an unchanged edit is a no-op. */
+  updateClass: (id: string, changes: { name?: string; color?: string }) => Result;
   deleteClass: (id: string) => void;
   /** `parentId` must be the class itself: subgroups can't contain subgroups. */
   addGroup: (classId: string, name: string, parentId?: string) => Result;
@@ -179,11 +183,23 @@ export function StudyDataProvider({
   }, []);
 
   const addClass = useCallback(
-    (name: string) => {
+    (name: string, color?: string) => {
       if (!readyRef.current) return NOT_READY;
       if (staleRef.current) return STALE;
       const cur = classesRef.current;
-      return applyClasses(createClass(cur, name, uid("class"), CLASS_COLORS[cur.length % CLASS_COLORS.length]));
+      return applyClasses(createClass(cur, name, uid("class"), color ?? defaultClassColor(cur)));
+    },
+    [applyClasses],
+  );
+
+  const updateClass = useCallback(
+    (id: string, changes: { name?: string; color?: string }) => {
+      if (!readyRef.current) return NOT_READY;
+      if (staleRef.current) return STALE;
+      const r = updateClassIn(classesRef.current, id, changes);
+      // Unchanged: keep the same array so nothing is saved or synced for a no-op edit.
+      if (r.ok && r.value === classesRef.current) return { ok: true, value: undefined } as const;
+      return applyClasses(r);
     },
     [applyClasses],
   );
@@ -309,10 +325,10 @@ export function StudyDataProvider({
   const value = useMemo(
     () => ({
       status, loadError, retryLoad, saveError, retrySave, staleTab,
-      classes, sessions, addClass, renameClass, deleteClass,
+      classes, sessions, addClass, renameClass, updateClass, deleteClass,
       addGroup, renameGroup, deleteGroup, replaceAllData, reassignSession: reassign, logSession, secondsFor, syncBridge,
     }),
-    [syncBridge, status, loadError, retryLoad, saveError, retrySave, staleTab, classes, sessions, addClass, renameClass, deleteClass, addGroup, renameGroup, deleteGroup, replaceAllData, reassign, logSession, secondsFor],
+    [syncBridge, status, loadError, retryLoad, saveError, retrySave, staleTab, classes, sessions, addClass, renameClass, updateClass, deleteClass, addGroup, renameGroup, deleteGroup, replaceAllData, reassign, logSession, secondsFor],
   );
 
   return <StudyDataContext.Provider value={value}>{children}</StudyDataContext.Provider>;

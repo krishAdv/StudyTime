@@ -139,7 +139,7 @@ describe("one-time sample cleanup (version 1 → 2)", () => {
     localStorage.setItem(DATA_KEY, JSON.stringify(v2));
     expect(load().classes).toHaveLength(3);
     // Reloading the migrated payload changes nothing.
-    localStorage.setItem(DATA_KEY, JSON.stringify({ version: 2, classes: [{ id: "class-9", name: "Art", color: "#000", groups: [] }], sessions: [realSession] }));
+    localStorage.setItem(DATA_KEY, JSON.stringify({ version: 2, classes: [{ id: "class-9", name: "Art", color: "#000000", groups: [] }], sessions: [realSession] }));
     const before = localStorage.getItem(DATA_KEY);
     load();
     expect(JSON.parse(localStorage.getItem(DATA_KEY)!)).toEqual(JSON.parse(before!));

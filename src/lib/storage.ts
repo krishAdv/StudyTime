@@ -1,3 +1,4 @@
+import { normalizeStoredColor } from "./class-colors";
 import { flattenLegacyGroups } from "./class-tree";
 import type { ClassItem, Session, TimerMode } from "./types";
 
@@ -14,7 +15,6 @@ export const DATA_VERSION = 2;
  */
 export const RESET_MARKER_KEY = "studytime:reset:2026-10-27";
 export const RESET_BACKUP_KEY = `${DATA_KEY}:pre-reset-backup`;
-export const CLASS_COLORS = ["#3b82f6", "#8b5cf6", "#f59e0b", "#10b981", "#ec4899", "#14b8a6"];
 
 export type StoredData = { classes: ClassItem[]; sessions: Session[] };
 
@@ -62,7 +62,8 @@ export function parseStoredData(raw: string): ParsedData | null {
     classes.push({
       id: c.id,
       name: c.name,
-      color: isStr(c.color) ? c.color : "#3b82f6",
+      // Missing or invalid colors get a preset default, so the data stays valid for export and sync.
+      color: normalizeStoredColor(c.color, classes.length),
       groups: flat.groups,
     });
   }

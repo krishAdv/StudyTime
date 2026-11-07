@@ -5,12 +5,15 @@ export function PageHeader({
   description,
   action,
   back,
+  accent,
 }: {
   title: string;
   description?: string;
   action?: React.ReactNode;
   /** Optional back arrow shown before the title, e.g. { label: "Back to Math", onClick }. */
   back?: { label: string; onClick: () => void };
+  /** Optional color bar before the title, e.g. the class color on a class page. */
+  accent?: string;
 }) {
   return (
     <div className="mb-6 flex items-start justify-between gap-4">
@@ -25,6 +28,14 @@ export function PageHeader({
           >
             <ArrowLeft className="h-5 w-5" aria-hidden />
           </button>
+        )}
+        {accent && (
+          <span
+            data-testid="page-accent"
+            aria-hidden
+            className="mr-2 mt-1.5 h-7 w-1.5 shrink-0 rounded-full sm:h-8"
+            style={{ backgroundColor: accent }}
+          />
         )}
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>

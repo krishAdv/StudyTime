@@ -32,7 +32,7 @@ describe("localStorage store", () => {
   it("round-trips saved data once the reset marker exists", () => {
     const storage = fakeStorage({ [RESET_MARKER_KEY]: "done" });
     const store = createLocalStorageStore(() => storage);
-    const data = { classes: [{ id: "c1", name: "Math", color: "#000", groups: [] }], sessions: [] };
+    const data = { classes: [{ id: "c1", name: "Math", color: "#000000", groups: [] }], sessions: [] };
     store.save(data);
     expect(JSON.parse(storage.map.get(DATA_KEY)!).version).toBe(DATA_VERSION);
     expect(store.load()).toEqual(data);

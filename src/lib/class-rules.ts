@@ -1,3 +1,4 @@
+import { isClassColor } from "./class-colors";
 import { findGroup } from "./class-tree";
 import type { ClassItem, GroupNode } from "./types";
 
@@ -64,6 +65,11 @@ export function validateGroupParent(classes: ClassItem[], classId: string, paren
   return fail("Subgroups must belong directly to a class.");
 }
 
+/** A class color must be `#rrggbb` (the export format and the database enforce the same rule). */
+export function validateClassColor(color: string): Result<string> {
+  return isClassColor(color) ? { ok: true, value: color } : fail("Choose a valid color.");
+}
+
 export function createClass(
   classes: ClassItem[],
   name: string,
@@ -72,7 +78,36 @@ export function createClass(
 ): Result<ClassItem[]> {
   const v = validateClassName(classes, name);
   if (!v.ok) return v;
-  return { ok: true, value: [...classes, { id, name: v.value, color, groups: [] }] };
+  const c = validateClassColor(color);
+  if (!c.ok) return c;
+  return { ok: true, value: [...classes, { id, name: v.value, color: c.value, groups: [] }] };
+}
+
+/**
+ * Edits a class's name and/or color in one atomic change: both are validated first and
+ * nothing changes if either is rejected. Omitted fields keep their current value.
+ */
+export function updateClassIn(
+  classes: ClassItem[],
+  id: string,
+  changes: { name?: string; color?: string },
+): Result<ClassItem[]> {
+  const cls = classes.find((c) => c.id === id);
+  if (!cls) return fail("That class no longer exists.");
+  let name = cls.name;
+  if (changes.name !== undefined) {
+    const v = validateClassName(classes, changes.name, id);
+    if (!v.ok) return v;
+    name = v.value;
+  }
+  let color = cls.color;
+  if (changes.color !== undefined) {
+    const v = validateClassColor(changes.color);
+    if (!v.ok) return v;
+    color = v.value;
+  }
+  if (name === cls.name && color === cls.color) return { ok: true, value: classes };
+  return { ok: true, value: classes.map((c) => (c.id === id ? { ...c, name, color } : c)) };
 }
 
 export function renameClassIn(classes: ClassItem[], id: string, name: string): Result<ClassItem[]> {

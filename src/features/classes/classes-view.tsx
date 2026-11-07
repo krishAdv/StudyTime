@@ -7,15 +7,17 @@ import { ConfirmDialog, NameDialog } from "@/components/ui/dialogs";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { useStudyData } from "@/features/data/study-data-provider";
+import { defaultClassColor } from "@/lib/class-colors";
 import { validateClassName, validateGroupName } from "@/lib/class-rules";
 import { findGroup } from "@/lib/class-tree";
 import { sessionsForGroup } from "@/lib/session-rules";
+import { ClassDialog } from "./class-dialog";
 import { SubgroupSessions } from "./subgroup-sessions";
 import { formatDuration } from "@/lib/utils";
 
 type Dialog =
   | { kind: "newClass" }
-  | { kind: "renameClass" }
+  | { kind: "editClass" }
   | { kind: "deleteClass" }
   | { kind: "newGroup" }
   | { kind: "renameGroup"; id: string }
@@ -100,17 +102,17 @@ export function ClassesView() {
           </ul>
         )}
 
-        <NameDialog
+        <ClassDialog
           open={dialog?.kind === "newClass"}
           title="New class"
-          label="Class name"
           submitLabel="Create"
+          initialColor={defaultClassColor(classes)}
           validate={(n) => {
             const v = validateClassName(classes, n);
             return v.ok ? null : v.error;
           }}
-          onSubmit={(n) => {
-            const r = data.addClass(n);
+          onSubmit={({ name, color }) => {
+            const r = data.addClass(name, color);
             return r.ok ? null : r.error;
           }}
           onClose={close}
@@ -139,6 +141,7 @@ export function ClassesView() {
 
       <PageHeader
         title={title}
+        accent={cls.color}
         back={
           current
             ? { label: `Back to ${cls.name}`, onClick: () => setGroupId(null) }
@@ -152,8 +155,8 @@ export function ClassesView() {
         action={
           <div className="flex shrink-0">
             <IconButton
-              label={`Rename ${title}`}
-              onClick={() => setDialog(current ? { kind: "renameGroup", id: current.id } : { kind: "renameClass" })}
+              label={current ? `Rename ${title}` : `Edit ${title}`}
+              onClick={() => setDialog(current ? { kind: "renameGroup", id: current.id } : { kind: "editClass" })}
             >
               <Pencil className="h-4 w-4" />
             </IconButton>
@@ -204,6 +207,7 @@ export function ClassesView() {
                     onClick={() => setGroupId(g.id)}
                     className="flex min-w-0 flex-1 items-center gap-3 p-4 text-left"
                   >
+                    <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: cls.color }} aria-hidden />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-medium">{g.name}</span>
                       <span className="block text-xs text-muted-foreground">
@@ -240,18 +244,18 @@ export function ClassesView() {
         }}
         onClose={close}
       />
-      <NameDialog
-        open={dialog?.kind === "renameClass"}
-        title="Rename class"
-        label="Class name"
-        initial={cls.name}
+      <ClassDialog
+        open={dialog?.kind === "editClass"}
+        title="Edit class"
+        initialName={cls.name}
+        initialColor={cls.color}
         submitLabel="Save"
         validate={(n) => {
           const v = validateClassName(classes, n, cls.id);
           return v.ok ? null : v.error;
         }}
-        onSubmit={(name) => {
-          const r = data.renameClass(cls.id, name);
+        onSubmit={(changes) => {
+          const r = data.updateClass(cls.id, changes);
           return r.ok ? null : r.error;
         }}
         onClose={close}

@@ -23,7 +23,7 @@ describe("class name uniqueness", () => {
 
   it("trims whitespace before validating and saving", () => {
     expect(validateClassName(classes, "   math  ").ok).toBe(false);
-    const r = createClass(classes, "  History  ", "c-hist", "#222");
+    const r = createClass(classes, "  History  ", "c-hist", "#222222");
     expect(r.ok && r.value.at(-1)?.name).toBe("History");
   });
 

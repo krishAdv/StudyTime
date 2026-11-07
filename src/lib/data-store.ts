@@ -16,6 +16,14 @@ export interface StudyDataStore {
   load(): StoredData | Promise<StoredData>;
   /** Persists a full snapshot. The provider never calls it before a load has succeeded. */
   save(data: StoredData): void | Promise<void>;
+  /**
+   * Optional cross-tab protection (the account store has it). Calls `onExternalChange` once if ANOTHER tab changed the
+   * stored data after this tab last read or wrote it, and immediately if that already happened. From then on `save`
+   * writes nothing. Returns a function that stops watching.
+   */
+  watch?(onExternalChange: () => void): () => void;
+  /** Optional: re-reads the stored data right now and flags this tab (like `watch`) if another tab changed it. */
+  checkNow?(): void;
 }
 
 export type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;

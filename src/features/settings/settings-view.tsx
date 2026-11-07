@@ -6,6 +6,8 @@ import { PageHeader } from "@/components/ui/page-header";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { useTheme, type ThemePreference } from "@/features/theme/theme-provider";
 import { AccountCard } from "@/features/auth/account-card";
+import { useSync } from "@/features/sync/sync-provider";
+import { SyncCard } from "@/features/sync/sync-ui";
 import { useTimer } from "@/features/timer/timer-provider";
 import { DataTransferCard } from "./data-transfer";
 import { LegacyDataCard } from "./legacy-data-card";
@@ -19,6 +21,7 @@ const THEMES = [
 export function SettingsView() {
   const { preference, setPreference } = useTheme();
   const timer = useTimer();
+  const sync = useSync();
 
   return (
     <>
@@ -38,13 +41,17 @@ export function SettingsView() {
         <Card>
           <CardTitle>Your data</CardTitle>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            Classes, groups, sessions and your theme are saved in this browser on this device. They don’t
-            sync between devices yet, and clearing site data removes them. When you’re signed in, your study data
-            is kept separately for your account on this device; syncing will arrive in a later update.
+            Classes, groups, sessions and your theme are saved in this browser on this device, and clearing site data
+            removes them. When you’re signed in, your study data is kept separately for your account on this device.{" "}
+            {sync.available
+              ? "Syncing between your devices is optional: it stays off until you turn it on for this device in “Sync between devices” below."
+              : "Your data stays on this device."}
           </p>
         </Card>
 
         <AccountCard timerActive={timer.state.status !== "idle"} />
+
+        <SyncCard />
 
         <DataTransferCard />
 

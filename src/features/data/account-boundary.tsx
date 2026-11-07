@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { SignInWall } from "@/features/auth/sign-in-wall";
 import { useAuth } from "@/features/auth/auth-provider";
+import { SyncProvider } from "@/features/sync/sync-provider";
 import { TimerProvider } from "@/features/timer/timer-provider";
 import { createAccountStore } from "@/lib/account-store";
 import { localStorageStore, type StorageLike, type StudyDataStore } from "@/lib/data-store";
@@ -44,7 +45,7 @@ export function AccountBoundary({
   }
   if (status === "signed-in" && user) {
     return (
-      <AccountScope key={`user:${user.id}`} userId={user.id} getStorage={getStorage}>
+      <AccountScope key={`user:${user.id}`} userId={user.id} accountLabel={user.email ?? null} getStorage={getStorage}>
         {children}
       </AccountScope>
     );
@@ -54,10 +55,12 @@ export function AccountBoundary({
 
 function AccountScope({
   userId,
+  accountLabel,
   getStorage,
   children,
 }: {
   userId: string;
+  accountLabel: string | null;
   getStorage?: () => StorageLike | null;
   children: React.ReactNode;
 }) {
@@ -65,7 +68,13 @@ function AccountScope({
   const store = useMemo(() => createAccountStore(userId, getStorage), [userId, getStorage]);
   return (
     <StudyDataProvider store={store}>
-      <TimerProvider>{children}</TimerProvider>
+      <TimerProvider>
+        {/* Sync exists only for signed-in accounts, is off unless the build flag and the device opt-in are on, and
+            changes nothing about local data when off. */}
+        <SyncProvider userId={userId} accountLabel={accountLabel} getStorage={getStorage}>
+          {children}
+        </SyncProvider>
+      </TimerProvider>
     </StudyDataProvider>
   );
 }

@@ -4,6 +4,7 @@ import { useId, useState } from "react";
 import { KeyRound, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
+import { useSync } from "@/features/sync/sync-provider";
 import { cn } from "@/lib/utils";
 import { MIN_PASSWORD_LENGTH, useAuth } from "./auth-provider";
 import { SignInForm, inputClass } from "./sign-in-form";
@@ -97,11 +98,13 @@ function ChangePasswordForm() {
 
 /**
  * Settings card: sign in or out, and change the password. Study data is saved on this
- * device under the signed-in account (no sync yet). `timerActive` blocks signing out
+ * device under the signed-in account; syncing between devices is optional and has its own
+ * card (`SyncCard`). `timerActive` blocks signing out
  * while a session is running, since the timer belongs to the signed-in account.
  */
 export function AccountCard({ timerActive }: { timerActive: boolean }) {
   const { status, user, signOut } = useAuth();
+  const sync = useSync();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -130,8 +133,10 @@ export function AccountCard({ timerActive }: { timerActive: boolean }) {
       {status === "signed-in" && (
         <>
           <p className="mb-4 mt-0.5 text-sm text-muted-foreground">
-            Signed in as <span className="font-medium text-foreground">{user?.email ?? "your account"}</span>. Your
-            study data is saved on this device under this account only; syncing between devices comes later.
+            Signed in as <span className="font-medium text-foreground">{user?.email ?? "your account"}</span>.{" "}
+            {sync.available
+              ? "Your study data is saved on this device under this account. Syncing between your devices is optional and stays off until you turn it on below (Sync between devices); when it is on, changes on this device are shared with your other linked devices."
+              : "Your study data is saved on this device under this account only."}{" "}
             Signing out doesn’t remove it.
           </p>
           <Button variant="secondary" onClick={leave} disabled={busy || timerActive}>

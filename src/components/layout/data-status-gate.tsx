@@ -4,6 +4,8 @@ import { AlertTriangle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useStudyData } from "@/features/data/study-data-provider";
+import { SyncBanner } from "@/features/sync/sync-ui";
+import { StaleTabBanner } from "./stale-tab-banner";
 
 /**
  * Shows the pages only once the study data has really loaded, so a loading or
@@ -33,6 +35,8 @@ export function DataStatusGate({ children }: { children: React.ReactNode }) {
 
   return (
     <>
+      <StaleTabBanner />
+      <SyncBanner />
       {saveError && (
         <div
           role="alert"

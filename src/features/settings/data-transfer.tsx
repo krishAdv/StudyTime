@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/dialogs";
 import { useStudyData } from "@/features/data/study-data-provider";
+import { useSync } from "@/features/sync/sync-provider";
 import { useTimer } from "@/features/timer/timer-provider";
 import { downloadText } from "@/lib/download";
 import { MAX_IMPORT_BYTES, exportFileName, parseExport, serializeExport } from "@/lib/data-export";
@@ -19,6 +20,7 @@ const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : 
 export function DataTransferCard() {
   const data = useStudyData();
   const timer = useTimer();
+  const sync = useSync();
   const fileInput = useRef<HTMLInputElement>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [pending, setPending] = useState<StoredData | null>(null);
@@ -120,7 +122,7 @@ export function DataTransferCard() {
         title="Replace your study data?"
         description={
           pending
-            ? `This file has ${count(pending.classes.length, "class", "classes")} and ${count(pending.sessions.length, "session", "sessions")}. Your current ${count(data.classes.length, "class", "classes")} and ${count(data.sessions.length, "session", "sessions")} will be replaced. This can’t be undone, so export first if you might want them back.`
+            ? `This file has ${count(pending.classes.length, "class", "classes")} and ${count(pending.sessions.length, "session", "sessions")}. Your current ${count(data.classes.length, "class", "classes")} and ${count(data.sessions.length, "session", "sessions")} will be replaced.${sync.enabled ? " Sync is on for this device, so this change can also reach your other linked devices (anything that isn’t in the file can be removed there too)." : ""} This can’t be undone, so export first if you might want them back.`
             : ""
         }
         confirmLabel="Replace my data"

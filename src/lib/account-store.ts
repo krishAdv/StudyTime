@@ -24,18 +24,87 @@ export function accountKey(userId: string, suffix: "data" | "data:corrupt"): str
   return `studytime:u:${userId}:${suffix}`;
 }
 
+/**
+ * Cross-tab protection. Every tab of the same browser and account shares ONE localStorage key, but each tab keeps its own
+ * copy of the data in memory. A tab that missed another tab's change would later save its older copy over the newer one,
+ * and a sync pass from it would then see the newer data as deleted. So the store remembers the exact text this tab last
+ * read or wrote (`known`), and:
+ *  - `save` compares the stored text with `known` first and writes nothing if it differs (another tab wrote in between),
+ *  - a `storage` event, and a re-check when the tab becomes visible, gets focus or is restored from the back/forward
+ *    cache (Safari suspends background tabs and may deliver no event), notice a change before any save is attempted.
+ * Once a tab is stale it stays stale until it is reloaded: it never writes again and never merges. Two tabs that wrote
+ * identical text are not in conflict. If storage can't be read (private mode, blocked), nothing is ever flagged and the
+ * store behaves as before.
+ */
 export function createAccountStore(
   userId: string,
   getStorage: () => StorageLike | null = () => (typeof window === "undefined" ? null : window.localStorage),
 ): StudyDataStore {
   const dataKey = accountKey(userId, "data");
   const corruptKey = accountKey(userId, "data:corrupt");
+
+  /** The stored text this tab last read or wrote; null = nothing was stored; undefined = unknown (never compare). */
+  let known: string | null | undefined;
+  let stale = false;
+  const listeners = new Set<() => void>();
+  let detach: (() => void) | null = null;
+
+  const readNow = (): string | null | undefined => {
+    try {
+      const storage = getStorage();
+      return storage ? storage.getItem(dataKey) : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+
+  const markStale = () => {
+    if (stale) return;
+    stale = true;
+    for (const notify of [...listeners]) {
+      try {
+        notify();
+      } catch {
+        // one listener failing must not stop the others
+      }
+    }
+  };
+
+  /** Compares what is stored now with what this tab knows; flags the tab if another tab changed it. */
+  const check = () => {
+    if (stale || known === undefined) return;
+    const now = readNow();
+    if (now !== undefined && now !== known) markStale();
+  };
+
+  function attach() {
+    if (detach || typeof window === "undefined") return;
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === null || e.key === dataKey) check();
+    };
+    const onVisible = () => {
+      if (typeof document === "undefined" || document.visibilityState === "visible") check();
+    };
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("focus", check);
+    window.addEventListener("pageshow", check);
+    document.addEventListener("visibilitychange", onVisible);
+    detach = () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("focus", check);
+      window.removeEventListener("pageshow", check);
+      document.removeEventListener("visibilitychange", onVisible);
+      detach = null;
+    };
+  }
+
   return {
     load() {
       try {
         const storage = getStorage();
         if (!storage) return EMPTY;
         const raw = storage.getItem(dataKey);
+        known = raw;
         if (raw === null) return EMPTY;
         const parsed = parseStoredData(raw);
         if (!parsed) {
@@ -50,11 +119,31 @@ export function createAccountStore(
     },
 
     save(data) {
+      // Another tab changed the data since this tab last looked: never overwrite it, now or later.
+      if (stale) return;
+      check();
+      if (stale) return;
       try {
-        getStorage()?.setItem(dataKey, serializeData(data));
+        const text = serializeData(data);
+        getStorage()?.setItem(dataKey, text);
+        known = text;
       } catch {
         // Quota or private mode: keep working in memory (same as the legacy store).
       }
+    },
+
+    checkNow() {
+      check();
+    },
+
+    watch(onExternalChange) {
+      listeners.add(onExternalChange);
+      attach();
+      if (stale) onExternalChange();
+      return () => {
+        listeners.delete(onExternalChange);
+        if (listeners.size === 0) detach?.();
+      };
     },
   };
 }

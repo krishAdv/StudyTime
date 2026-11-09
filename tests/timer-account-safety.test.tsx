@@ -124,13 +124,20 @@ describe("a running timer belongs to one account", () => {
     expect(sessionsIn(storage, "user-b")).toBe(0);
   });
 
-  it("signing back in as the original account does not resurrect the old timer", async () => {
-    const { auth } = setup();
+  it("an involuntary sign-out keeps the session on this device: signing back in as the same account resumes it", async () => {
+    // Deliberate sign-out is blocked while a timer runs, so a sign-out here is involuntary (an expired session).
+    // The active session is kept for that account only and comes back, with the time counted throughout.
+    const { storage, auth } = setup();
     await flush();
     startTimer();
+    act(() => void vi.advanceTimersByTime(60_000));
     await act(async () => void auth.signOutEvent());
     await act(async () => void auth.signInAs("user-a"));
-    expect(screen.getByTestId("timer").textContent).toBe("idle");
+    expect(screen.getByTestId("timer").textContent).toBe("running");
+    act(() => void vi.advanceTimersByTime(30_000));
+    fireEvent.click(screen.getByText("stop"));
+    expect(sessionsIn(storage, "user-a")).toBe(1);
+    expect(sessionsIn(storage, "user-b")).toBe(0);
   });
 });
 

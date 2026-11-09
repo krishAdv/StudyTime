@@ -17,7 +17,7 @@ import { DATA_KEY, parseStoredData, serializeData, type StoredData } from "./sto
 const EMPTY: StoredData = { classes: [], sessions: [] };
 
 /** `studytime:u:<userId>:<suffix>`. Refuses an empty id so no two accounts can ever share a bucket. */
-export function accountKey(userId: string, suffix: "data" | "data:corrupt"): string {
+export function accountKey(userId: string, suffix: "data" | "data:corrupt" | "active-session"): string {
   if (typeof userId !== "string" || userId.trim() === "") {
     throw new Error("An account id is required to read or write account data.");
   }
@@ -123,13 +123,11 @@ export function createAccountStore(
       if (stale) return;
       check();
       if (stale) return;
-      try {
-        const text = serializeData(data);
-        getStorage()?.setItem(dataKey, text);
-        known = text;
-      } catch {
-        // Quota or private mode: keep working in memory (same as the legacy store).
-      }
+      // A failed write (quota, blocked storage) throws, as in the legacy store: the provider shows "not saved" with
+      // Retry and keeps the data in memory. `known` changes only after a write that happened.
+      const text = serializeData(data);
+      getStorage()?.setItem(dataKey, text);
+      known = text;
     },
 
     checkNow() {

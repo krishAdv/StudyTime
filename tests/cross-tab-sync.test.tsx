@@ -50,7 +50,7 @@ async function setup(wrap?: (api: SyncApi, mem: ReturnType<typeof createMemorySt
     wrapper: ({ children }) => (
       <SettingsProvider>
         <StudyDataProvider store={store}>
-          <TimerProvider>
+          <TimerProvider getStorage={getStorage}>
             <SyncProvider userId={USER} api={api} getStorage={getStorage} buildEnabled>
               <SyncBanner />
               <SyncCard />
@@ -199,7 +199,7 @@ describe("a stale tab never syncs (the deletion scenario from the audit)", () =>
       wrapper: ({ children }) => (
         <SettingsProvider>
           <StudyDataProvider store={store}>
-            <TimerProvider>
+            <TimerProvider getStorage={getStorage}>
               <SyncProvider userId={USER} api={server.apiFor(USER)} getStorage={getStorage} buildEnabled>
                 {children}
               </SyncProvider>

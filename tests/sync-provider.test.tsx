@@ -44,7 +44,7 @@ async function setup(opts: { enabled?: boolean; linked?: boolean; buildEnabled?:
     wrapper: ({ children }) => (
       <SettingsProvider>
         <StudyDataProvider store={store}>
-          <TimerProvider>
+          <TimerProvider getStorage={getStorage}>
             <SyncProvider userId={USER} api={api} getStorage={getStorage} buildEnabled={buildEnabled} changeDelayMs={opts.changeDelayMs ?? 3000}>
               {children}
             </SyncProvider>
@@ -273,7 +273,7 @@ describe("the settings card and the banner", () => {
     render(
       <SettingsProvider>
         <StudyDataProvider store={store}>
-          <TimerProvider>
+          <TimerProvider getStorage={getStorage}>
             <SyncProvider userId={USER} api={api} getStorage={getStorage} buildEnabled={opts.buildEnabled ?? true}>
               <SyncBanner />
               <SyncCard />

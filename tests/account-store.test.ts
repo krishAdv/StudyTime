@@ -63,7 +63,7 @@ describe("createAccountStore", () => {
     expect(s.map.get(accountKey("u1", "data"))).toBe("{not json");
   });
 
-  it("falls back to memory when storage is unavailable or throws", () => {
+  it("loads empty when storage is unavailable or throws, and reports a failed save by throwing", () => {
     expect(createAccountStore("u1", () => null).load()).toEqual({ classes: [], sessions: [] });
     const broken = {
       getItem: () => {
@@ -76,7 +76,7 @@ describe("createAccountStore", () => {
     };
     const store = createAccountStore("u1", () => broken);
     expect(store.load()).toEqual({ classes: [], sessions: [] });
-    expect(() => store.save(DATA)).not.toThrow();
+    expect(() => store.save(DATA)).toThrow("quota");
   });
 });
 

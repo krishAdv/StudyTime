@@ -85,11 +85,9 @@ export function createLocalStorageStore(
     },
 
     save(data) {
-      try {
-        getStorage()?.setItem(DATA_KEY, serializeData(data));
-      } catch {
-        // Quota or private mode: keep working in memory.
-      }
+      // A failed write (quota, blocked storage) throws: the provider's writer then shows "not saved" with Retry
+      // and keeps the data in memory, and the timer knows a finished session isn't on disk yet.
+      getStorage()?.setItem(DATA_KEY, serializeData(data));
     },
   };
 }

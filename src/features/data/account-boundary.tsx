@@ -5,7 +5,7 @@ import { SignInWall } from "@/features/auth/sign-in-wall";
 import { useAuth } from "@/features/auth/auth-provider";
 import { SyncProvider } from "@/features/sync/sync-provider";
 import { TimerProvider } from "@/features/timer/timer-provider";
-import { createAccountStore } from "@/lib/account-store";
+import { accountKey, createAccountStore } from "@/lib/account-store";
 import { localStorageStore, type StorageLike, type StudyDataStore } from "@/lib/data-store";
 import { StudyDataProvider } from "./study-data-provider";
 
@@ -68,7 +68,8 @@ function AccountScope({
   const store = useMemo(() => createAccountStore(userId, getStorage), [userId, getStorage]);
   return (
     <StudyDataProvider store={store}>
-      <TimerProvider>
+      {/* The running session is kept per account on this device (never synced), so it survives a reload. */}
+      <TimerProvider persistKey={accountKey(userId, "active-session")} getStorage={getStorage}>
         {/* Sync exists only for signed-in accounts, is off unless the build flag and the device opt-in are on, and
             changes nothing about local data when off. */}
         <SyncProvider userId={userId} accountLabel={accountLabel} getStorage={getStorage}>

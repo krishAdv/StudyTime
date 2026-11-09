@@ -64,13 +64,13 @@ describe("localStorage store", () => {
     expect(store.load()).toEqual({ classes: [], sessions: [] });
   });
 
-  it("save never throws when the write fails (quota or private mode)", () => {
+  it("save reports a failed write (quota or private mode) by throwing, so the provider can show it", () => {
     const store = createLocalStorageStore(() => ({
       getItem: () => null,
       setItem: () => { throw new Error("QuotaExceededError"); },
       removeItem: () => {},
     }));
-    expect(() => store.save({ classes: [], sessions: [] })).not.toThrow();
+    expect(() => store.save({ classes: [], sessions: [] })).toThrow("QuotaExceededError");
   });
 
   it("save is a no-op without storage", () => {

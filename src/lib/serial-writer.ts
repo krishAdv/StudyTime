@@ -2,8 +2,11 @@ export const isPromise = (v: unknown): v is PromiseLike<unknown> =>
   typeof v === "object" && v !== null && typeof (v as { then?: unknown }).then === "function";
 
 export type SerialWriter<T> = {
-  /** Queues a full snapshot; it replaces any snapshot still waiting. */
-  submit(snapshot: T): void;
+  /**
+   * Queues a full snapshot; it replaces any snapshot still waiting. Returns true only when this exact snapshot was
+   * written successfully before `submit` returned (a synchronous write); false if it failed or is still queued.
+   */
+  submit(snapshot: T): boolean;
   /** Tries the latest snapshot again after a failure. No-op if nothing failed. */
   retry(): void;
 };
@@ -24,6 +27,7 @@ export function createSerialWriter<T>(
   let waiting = false;
   let inFlight = false;
   let failed = false;
+  let lastWritten: { snapshot: T } | null = null;
 
   const setFailed = (next: boolean) => {
     if (failed === next) return;
@@ -58,6 +62,7 @@ export function createSerialWriter<T>(
         );
         return;
       }
+      lastWritten = { snapshot };
       if (!waiting) setFailed(false);
     }
   }
@@ -66,7 +71,9 @@ export function createSerialWriter<T>(
     submit(snapshot) {
       latest = snapshot;
       waiting = true;
+      lastWritten = null;
       drain();
+      return lastWritten !== null && (lastWritten as { snapshot: T }).snapshot === snapshot;
     },
     retry() {
       if (!failed || inFlight) return;

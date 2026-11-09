@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { Result } from "@/lib/class-rules";
+import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { getSupabase } from "@/lib/supabase/client";
 
 /**
@@ -22,7 +23,7 @@ type AuthError = { message?: string; status?: number; code?: string; name?: stri
 /** The slice of the Supabase client used here (so tests can pass a fake). */
 export type AuthClient = {
   auth: {
-    getSession(): Promise<{ data: { session: { user: { id: string; email?: string } } | null } }>;
+    getSession(): Promise<{ data: { session: { user: { id: string; email?: string } } | null }; error?: unknown }>;
     onAuthStateChange(
       callback: (event: string, session: { user: { id: string; email?: string } } | null) => void,
     ): { data: { subscription: { unsubscribe(): void } } };
@@ -60,13 +61,47 @@ export const MIN_PASSWORD_LENGTH = 8;
 
 const toUser = (u: { id: string; email?: string }): AuthUser => ({ id: u.id, email: u.email ?? null });
 
+/**
+ * The account last seen signed in on this device (`{id, email}`), written from auth events and removed on SIGNED_OUT.
+ * It only says WHICH account's local data to show when supabase-js reports "no session" because it could not refresh
+ * an expired token offline (see below); it is never a credential and never decides on its own that anyone is signed in.
+ */
+export const LAST_USER_KEY = "studytime:auth:last-user";
+
+type GetStorage = () => Pick<Storage, "getItem" | "setItem" | "removeItem"> | null;
+const defaultStorage: GetStorage = () => (typeof window === "undefined" ? null : window.localStorage);
+
+function readLastUser(getStorage: GetStorage): AuthUser | null {
+  try {
+    const v = JSON.parse(getStorage()?.getItem(LAST_USER_KEY) ?? "null") as { id?: unknown; email?: unknown } | null;
+    if (!v || typeof v.id !== "string" || !v.id) return null;
+    return { id: v.id, email: typeof v.email === "string" ? v.email : null };
+  } catch {
+    return null;
+  }
+}
+
+function writeLastUser(getStorage: GetStorage, user: AuthUser | null) {
+  try {
+    const s = getStorage();
+    if (!s) return;
+    if (user) s.setItem(LAST_USER_KEY, JSON.stringify(user));
+    else s.removeItem(LAST_USER_KEY);
+  } catch {
+    // Only an offline convenience: without it, offline with an expired token shows the sign-in screen as before.
+  }
+}
+
 export function AuthProvider({
   children,
   client: injected,
+  getStorage = defaultStorage,
 }: {
   children: React.ReactNode;
   /** Tests pass a fake (or null for "not configured"); the app uses the shared client. */
   client?: AuthClient | null;
+  /** Where the last signed-in account is remembered (`LAST_USER_KEY`); defaults to window.localStorage. */
+  getStorage?: GetStorage;
 }) {
   const [client] = useState<AuthClient | null>(() => (injected !== undefined ? injected : getSupabase()));
   const [state, setState] = useState<{ status: AuthStatus; user: AuthUser | null }>(() => ({
@@ -77,35 +112,57 @@ export function AuthProvider({
   useEffect(() => {
     if (!client) return;
     let active = true;
-    const apply = (session: { user: { id: string; email?: string } } | null) =>
-      setState(session ? { status: "signed-in", user: toUser(session.user) } : { status: "signed-out", user: null });
+    const signedIn = (user: AuthUser) => {
+      writeLastUser(getStorage, user);
+      return { status: "signed-in" as const, user };
+    };
+    const signedOut = () => {
+      writeLastUser(getStorage, null);
+      return { status: "signed-out" as const, user: null };
+    };
 
-    // Events are the source of truth (sign-in, sign-out, refresh, another tab).
-    const { data } = client.auth.onAuthStateChange((_event, session) => {
-      if (active) apply(session);
+    // Events are the source of truth (sign-in, sign-out, refresh, another tab). A session in an event means signed
+    // in, and SIGNED_OUT (also sent when supabase-js drops a session whose refresh token was rejected) means signed
+    // out. A null INITIAL_SESSION alone doesn't say why there is no session, so getSession's answer below decides.
+    const { data } = client.auth.onAuthStateChange((event, session) => {
+      if (!active) return;
+      if (session) setState(signedIn(toUser(session.user)));
+      else if (event === "SIGNED_OUT") setState(signedOut());
     });
-    // Fallback for the first answer only; it must never overwrite a newer event.
+
+    // The first answer, unless an event already gave one. "No session" is not always "signed out": offline with an
+    // expired access token (e.g. reopened after an hour), supabase-js can't refresh, returns no session with an
+    // AuthRetryableFetchError, keeps the stored session and refreshes it once the network is back (verified against
+    // supabase-js 2.118). The device is still signed in then, as the account last seen here, so its local data and a
+    // running timer stay available offline. No error means nothing is stored; any other error means the session was
+    // rejected and removed. Both are signed out.
+    const offlineOr = (error: unknown) => {
+      const last = isAuthRetryableFetchError(error) ? readLastUser(getStorage) : null;
+      return last ? { status: "signed-in" as const, user: last } : null;
+    };
     client.auth
       .getSession()
-      .then(({ data: { session } }) => {
+      .then(({ data: { session }, error }) => {
         if (!active) return;
         setState((prev) =>
           prev.status !== "loading"
             ? prev
             : session
-              ? { status: "signed-in", user: toUser(session.user) }
-              : { status: "signed-out", user: null },
+              ? signedIn(toUser(session.user))
+              : (offlineOr(error) ?? signedOut()),
         );
       })
-      .catch(() => {
-        if (active) setState((prev) => (prev.status === "loading" ? { status: "signed-out", user: null } : prev));
+      .catch((e: unknown) => {
+        if (active) {
+          setState((prev) => (prev.status === "loading" ? (offlineOr(e) ?? { status: "signed-out", user: null }) : prev));
+        }
       });
 
     return () => {
       active = false;
       data.subscription.unsubscribe();
     };
-  }, [client]);
+  }, [client, getStorage]);
 
   const signIn = useCallback(
     async (email: string, password: string): Promise<Result> => {

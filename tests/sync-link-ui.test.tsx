@@ -54,7 +54,7 @@ async function shell(local: SyncSnapshot, cloud: SyncSnapshot | null, wrap: (api
   render(
     <SettingsProvider>
       <StudyDataProvider store={store}>
-        <TimerProvider>
+        <TimerProvider getStorage={getStorage}>
           <SyncProvider userId={USER} accountLabel={EMAIL} api={wrap(server.apiFor(USER))} getStorage={getStorage} buildEnabled>
             <Probe />
             <SyncCard />
@@ -208,7 +208,7 @@ describe("first link in the Settings card", () => {
     render(
       <SettingsProvider>
         <StudyDataProvider store={createAccountStore(USER, getStorage)}>
-          <TimerProvider>
+          <TimerProvider getStorage={getStorage}>
             <SyncProvider userId={USER} accountLabel={EMAIL} api={server.apiFor(USER)} getStorage={getStorage} buildEnabled>
               <SyncCard />
             </SyncProvider>

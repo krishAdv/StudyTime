@@ -106,6 +106,11 @@ export function TimerCard() {
                 ? "Paused. Paused time isn’t counted."
                 : "Study time is being counted.")}
         </p>
+        {t.persistWarning && (
+          <p role="alert" className="mx-auto mt-3 max-w-md rounded-xl border border-danger/40 px-3 py-2 text-center text-sm text-danger">
+            {t.persistWarning}
+          </p>
+        )}
       </div>
 
       {/* Controls */}

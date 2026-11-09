@@ -55,7 +55,7 @@ async function shell(local: SyncSnapshot, cloudOps: (cloud: SyncSnapshot) => Syn
   render(
     <SettingsProvider>
       <StudyDataProvider store={createAccountStore(USER, getStorage)}>
-        <TimerProvider>
+        <TimerProvider getStorage={getStorage}>
           <SyncProvider userId={USER} accountLabel={EMAIL} api={server.apiFor(USER)} getStorage={getStorage} buildEnabled>
             <Probe />
             <SyncCard />

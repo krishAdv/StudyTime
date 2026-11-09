@@ -130,7 +130,7 @@ describe("Import in Settings", () => {
     const view = render(
       <SettingsProvider>
         <StudyDataProvider store={createLocalStorageStore(() => storage)}>
-          <TimerProvider>
+          <TimerProvider getStorage={() => storage}>
             <Probe />
             <DataTransferCard />
           </TimerProvider>

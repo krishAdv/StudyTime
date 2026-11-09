@@ -58,8 +58,13 @@ type StudyData = {
   replaceAllData: (data: StoredData) => Result;
   /** Moves a saved session to another class/subgroup (null = no subgroup); nothing else about it changes. */
   reassignSession: (sessionId: string, classId: string, groupId: string | null) => Result;
-  /** Idempotent: a session whose id is already stored is ignored. */
-  logSession: (s: Session) => void;
+  /**
+   * Idempotent: a session whose id is already stored is ignored (but still saved). Returns
+   * `saved` once the data holding it was written to the store, `dropped` when its class no longer
+   * exists (deleted while timing), or `unsaved` when it could not be written yet (not ready, stale
+   * tab, failed or still pending write). The timer keeps `unsaved` sessions and retries them.
+   */
+  logSession: (s: Session) => LogSessionResult;
   /** Total seconds for a class, or for the sessions logged directly to one of its groups. */
   secondsFor: (classId: string, groupId?: string | null) => number;
   /**
@@ -80,6 +85,8 @@ const StudyDataContext = createContext<StudyData | null>(null);
 
 const NOT_READY = { ok: false, error: "Your data is still loading." } as const;
 const STALE = { ok: false, error: "StudyTime was changed in another tab. Reload this tab before making changes." } as const;
+
+export type LogSessionResult = "saved" | "dropped" | "unsaved";
 
 export function StudyDataProvider({
   children,
@@ -243,19 +250,24 @@ export function StudyDataProvider({
     );
   }, [setSessions]);
 
-  const logSession = useCallback((s: Session) => {
-    // Not reachable from the UI before "ready": the timer can't start without a class.
-    if (!readyRef.current) return;
+  const logSession = useCallback((s: Session): LogSessionResult => {
+    // Not reachable from the UI before "ready": the timer can't start without a class. A session restored after a
+    // reload can arrive before an async store is ready, so it is reported as unsaved and retried.
+    if (!readyRef.current) return "unsaved";
     // Deliberately NOT blocked in a stale tab: a session that was timed in this tab is kept in memory (visible, and part
     // of "Download this tab's data") so it is never dropped silently. It is not saved and not synced from here.
     // The class or subgroup may have been deleted while the timer was running.
     // A deleted class takes its sessions with it, and a deleted subgroup leaves
     // its sessions on the class, so a late save follows the same rules.
     const cls = classesRef.current.find((c) => c.id === s.classId);
-    if (!cls) return;
+    if (!cls) return "dropped";
     const session = s.groupId && !findGroup(cls.groups, s.groupId) ? { ...s, groupId: null } : s;
     setSessions((prev) => (prev.some((p) => p.id === session.id) ? prev : [session, ...prev]));
-  }, [setSessions]);
+    // Write now rather than in the effect after the next render, so the caller knows the session is on disk.
+    store.checkNow?.();
+    if (staleRef.current) return "unsaved";
+    return writer.submit({ classes: classesRef.current, sessions: sessionsRef.current }) ? "saved" : "unsaved";
+  }, [setSessions, store, writer]);
 
   const replaceAllData = useCallback(
     (data: StoredData): Result => {
